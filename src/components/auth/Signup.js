@@ -1,123 +1,145 @@
-import React from 'react';
-import { useForm } from 'react-hook-form'; // React Hook Form for form handling and validation
-import { Link, useNavigate } from 'react-router-dom'; // React Router for navigation
-import { useAuth } from '../../context/AuthContext'; // Use AuthContext for authentication
-import ErrorMessage from '../common/ErrorMessage'; // Error message component for form errors
-import { Spin } from 'antd'; // Ant Design spinner for loading states
-import styled from '@emotion/styled'; // Emotion's styled component for reusable styles
+/**
+ * Signup.js
+ * 
+ * This component renders a signup form, allowing users to create an account by providing their username, email, and password.
+ * It uses `react-hook-form` for form handling, `useAuth` for authentication logic, and `react-i18next` for localization.
+ * Styling is applied using Emotion with global styles imported from `globalStyles.js`.
+ */
 
-// Styled container for the signup form
-const FormContainer = styled.div`
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #3a3651; /* Background color from the provided palette */
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  color: #ffffff;
-`;
-
-// Styled submit button for the form
-const FormButton = styled.button`
-  background-color: #494761; /* Use one of the provided colors */
-  color: #ffffff;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-
-  &:hover {
-    background-color: #3d3a54;
-  }
-
-  &:disabled {
-    background-color: #312c49;
-    cursor: not-allowed;
-  }
-`;
+import React from "react";
+import { useForm } from "react-hook-form"; // React Hook Form for managing form state and validation
+import { Link, useNavigate } from "react-router-dom"; // React Router for navigation and link management
+import { useAuth } from "../../hooks/useAuth"; // Custom hook for authentication logic
+import { useTranslation } from "react-i18next"; // Hook for accessing translation functions (i18n)
+import ErrorMessage from '../ui/ErrorMessage'; // Error message component for displaying any form errors
+import { Spin } from "antd"; // Ant Design spinner for showing loading states
+import {
+  formContainerStyles,
+  inputFieldStyles,
+  buttonStyles,
+  labelStyles,
+  errorMessageStyles,
+} from "../../assets/styles/globalStyles"; // Import global styles
 
 const Signup = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm(); // React Hook Form setup
-  const { signup, isLoading, error } = useAuth(); // Use AuthContext to access signup function
-  const navigate = useNavigate(); // Hook to programmatically navigate
+  // Initialize the useForm hook for form validation and state management
+  const {
+    register, // To register input fields with validation
+    handleSubmit, // To handle form submission
+    formState: { errors }, // To get form validation errors
+  } = useForm();
 
-  // Form submission handler
+  // Extract signup function and state (isLoading, error) from the custom useAuth hook
+  const { signup, isLoading, error } = useAuth();
+
+  // Initialize translation hook from react-i18next for localization
+  const { t } = useTranslation();
+
+  // Hook from React Router for navigation (e.g., redirect after successful signup)
+  const navigate = useNavigate();
+
+  /**
+   * onSubmit function
+   * This function is called when the form is submitted. It handles user signup.
+   * 
+   * @param {Object} data - The form data, including username, email, and password.
+   */
   const onSubmit = async (data) => {
     try {
-      await signup(data); // Call signup function from AuthContext with form data
-      navigate('/', { replace: true }); // Redirect to homepage after successful signup
+      // Call the signup function (from useAuth hook) with form data
+      await signup(data);
+      // Redirect to the homepage ("/") after successful signup
+      navigate("/", { replace: true });
     } catch (err) {
-      console.error('Signup error:', err); // Handle any unexpected errors (note: API errors handled in AuthContext)
+      // Log any unexpected errors to the console
+      console.error("Signup error:", err);
     }
   };
 
   return (
-    <FormContainer> {/* Form container styled with Emotion */}
-      <h2>Create an Account</h2>
+    <div css={formContainerStyles}> {/* Apply global form container styles */}
+      <h2>{t("signup.title")}</h2> {/* Localized form title */}
 
-      {/* Display error message if signup fails */}
+      {/* If there's an error during signup, display it using ErrorMessage component */}
       {error && <ErrorMessage message={error} />}
 
-      <form onSubmit={handleSubmit(onSubmit)}> {/* React Hook Form handles validation */}
+      {/* Form for user signup */}
+      <form onSubmit={handleSubmit(onSubmit)}>
         <div>
-          <label htmlFor="username">Username:</label>
-          <input 
-            type="text" 
-            id="username" 
-            {...register('username', {
-              required: 'Username is required', // Validation rule for username
-              minLength: { value: 3, message: 'Username must be at least 3 characters long' }, // Minimum length validation
-            })} 
-          />
-          {/* Display validation error for username */}
-          {errors.username && <p className="error">{errors.username.message}</p>}
-        </div>
-
-        <div>
-          <label htmlFor="email">Email:</label>
-          <input 
-            type="email" 
-            id="email" 
-            {...register('email', {
-              required: 'Email is required', // Validation rule for email
-              pattern: {
-                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Basic email format validation
-                message: 'Enter a valid email address',
+          {/* Username input field */}
+          <label htmlFor="username" css={labelStyles}>
+            {t("signup.usernameLabel")}
+          </label>
+          <input
+            type="text"
+            id="username"
+            {...register("username", {
+              required: t("signup.usernameRequired"), // Localized validation message for required field
+              minLength: {
+                value: 3,
+                message: t("signup.usernameMinLength"), // Localized message for minimum length
               },
             })}
+            css={inputFieldStyles} // Apply global input field styles
           />
-          {/* Display validation error for email */}
-          {errors.email && <p className="error">{errors.email.message}</p>}
+          {/* If there's a validation error for username, display it */}
+          {errors.username && <p css={errorMessageStyles}>{errors.username.message}</p>}
         </div>
 
         <div>
-          <label htmlFor="password">Password:</label>
-          <input 
-            type="password" 
-            id="password" 
-            {...register('password', {
-              required: 'Password is required', // Validation rule for password
-              minLength: { value: 6, message: 'Password must be at least 6 characters long' }, // Minimum length validation
-            })} 
+          {/* Email input field */}
+          <label htmlFor="email" css={labelStyles}>
+            {t("signup.emailLabel")}
+          </label>
+          <input
+            type="email"
+            id="email"
+            {...register("email", {
+              required: t("signup.emailRequired"), // Localized validation message for required field
+              pattern: {
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Regex pattern for validating email format
+                message: t("signup.emailInvalid"), // Localized message for invalid email format
+              },
+            })}
+            css={inputFieldStyles} // Apply global input field styles
           />
-          {/* Display validation error for password */}
-          {errors.password && <p className="error">{errors.password.message}</p>}
+          {/* If there's a validation error for email, display it */}
+          {errors.email && <p css={errorMessageStyles}>{errors.email.message}</p>}
         </div>
 
-        {/* Submit button with loading spinner */}
-        <FormButton type="submit" disabled={isLoading}>
-          {isLoading ? <Spin /> : 'Sign Up'} {/* Ant Design spinner for loading state */}
-        </FormButton>
+        <div>
+          {/* Password input field */}
+          <label htmlFor="password" css={labelStyles}>
+            {t("signup.passwordLabel")}
+          </label>
+          <input
+            type="password"
+            id="password"
+            {...register("password", {
+              required: t("signup.passwordRequired"), // Localized validation message for required field
+              minLength: {
+                value: 6,
+                message: t("signup.passwordMinLength"), // Localized message for minimum length
+              },
+            })}
+            css={inputFieldStyles} // Apply global input field styles
+          />
+          {/* If there's a validation error for password, display it */}
+          {errors.password && <p css={errorMessageStyles}>{errors.password.message}</p>}
+        </div>
+
+        {/* Submit button with loading state */}
+        <button type="submit" css={buttonStyles} disabled={isLoading}>
+          {isLoading ? <Spin /> : t("signup.submit")} {/* Ant Design spinner during loading */}
+        </button>
       </form>
 
-      {/* Links for login and password reset */}
+      {/* Link to login page if the user already has an account */}
       <p>
-        Already have an account? <Link to="/login">Log In</Link>
+        {t("signup.haveAccount")}{" "}
+        <Link to="/login">{t("signup.loginLink")}</Link>
       </p>
-    </FormContainer>
+    </div>
   );
 };
 

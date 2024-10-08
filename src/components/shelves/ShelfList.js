@@ -1,70 +1,97 @@
 /**
  * ShelfList.js
- * This component displays a list of user-created shelves.
- * It integrates with the ShelfContext to fetch and display shelves.
- * Ant Design components are used for a polished UI, and Emotion handles styling.
+ * 
+ * This component renders a list of user-created shelves and provides links to view details for each shelf.
+ * It integrates with the `useShelf` hook for managing shelf-related state and actions, 
+ * uses Ant Design for UI components, and Emotion for CSS-in-JS styling.
+ * The component is also localized using the `react-i18next` library.
  */
 
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useShelf } from '../../context/ShelfContext'; 
-import { List, Spin, Typography } from 'antd'; // Ant Design components
-import { FolderOutlined } from 'react-icons/all'; // React Icons for folder icon
-import styled from '@emotion/styled';
+import React, { useMemo } from 'react'; // Import React and memoization hook
+import { Link } from 'react-router-dom'; // For navigation to shelf details using React Router
+import { useShelf } from '../../hooks/useShelf'; // Custom hook to access shelf-related data and actions
+import { List, Spin, Typography, Alert } from 'antd'; // Ant Design components for list, spinner, typography, and alert
+import { FolderOutlined } from '@ant-design/icons'; // Ant Design icon for representing shelves
+import styled from '@emotion/styled'; // Emotion for CSS-in-JS styling
+import { useTranslation } from 'react-i18next'; // Hook for translations
+import {
+  globalContainerStyles,
+  errorMessageStyles,
+  listItemStyles,
+} from '../../assets/styles/globalStyles'; // Import global styles for consistency
 
-// Styled container for the shelf list
+// Destructure Title from Ant Design's Typography component
+const { Title } = Typography;
+
+// Styled container for the shelf list using Emotion and global styles
 const ShelfListContainer = styled.div`
-  background-color: #3c3853;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
-  color: #ffffff;
+  ${globalContainerStyles}; /* Apply global container styles */
+  background-color: #3c3853; /* Dark background color to match app theme */
+  border-radius: 8px; /* Rounded corners for a polished UI */
+  color: white; /* Ensure text is visible against dark background */
 `;
 
-// Styled list item with hover effect
+// Styled list item for each shelf using Emotion and global styles
 const StyledListItem = styled(List.Item)`
-  background-color: #494761;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  padding: 10px 15px;
-  &:hover {
-    background-color: #3a3651;
-  }
+  ${listItemStyles}; /* Apply global styles for list items */
 `;
 
-const { Title } = Typography; // Destructure Ant Design's Typography
-
+/**
+ * ShelfList Component
+ * 
+ * This component fetches and displays a list of shelves from the `useShelf` hook. 
+ * If there are shelves, it maps over the list and displays each shelf as a clickable link. 
+ * It also handles loading and error states using Ant Design's Spin and Alert components.
+ * 
+ * @returns {JSX.Element} - A list of shelves or a loading/error message.
+ */
 const ShelfList = () => {
-  const { shelves, isLoading, error } = useShelf();
+  const { t } = useTranslation(); // Translation hook for internationalization (i18n)
+  const { shelves, isLoading, error } = useShelf(); // Get shelves, loading, and error states from the custom hook
 
+  // Memoize the shelves data to prevent unnecessary re-renders
+  const memoizedShelves = useMemo(() => shelves, [shelves]);
+
+  // If data is loading, display a spinner
   if (isLoading) {
+    return <Spin tip={t('shelfList.loading')} size="large" />; // Display loading message and spinner
+  }
+
+  // If an error occurred, display an error alert
+  if (error) {
     return (
-      <Spin tip="Loading shelves..." size="large" /> // Ant Design's loading spinner
+      <Alert
+        message={t('shelfList.errorTitle')} // Localized error title
+        description={t('shelfList.errorDescription', { error })} // Localized error description
+        type="error" // Set alert type to error
+        showIcon // Show the error icon
+        css={errorMessageStyles} // Apply global error message styles
+      />
     );
   }
 
-  if (error) {
-    return <div className="error-message">Error: {error}</div>; // Error message if something goes wrong
-  }
-
+  // Render the list of shelves if they exist
   return (
     <ShelfListContainer>
-      <Title level={3}>My Shelves</Title> {/* Ant Design's Typography for the title */}
-      
+      {/* Display the title of the section */}
+      <Title level={3}>{t('shelfList.title')}</Title> {/* Localized title for the shelf list */}
+
+      {/* If shelves exist, render the list of shelves */}
       <List
-        dataSource={shelves}
+        dataSource={memoizedShelves} // Use memoized data to avoid unnecessary re-renders
         renderItem={(shelf) => (
-          <StyledListItem>
-            <Link to={`/shelf/${shelf._id}`}>
-              <FolderOutlined style={{ marginRight: 8 }} /> {/* React Icon for folder */}
-              {shelf.name} ({shelf.books.length} books) {/* Shelf name and number of books */}
+          <StyledListItem key={shelf._id}> {/* Each shelf has a unique key */}
+            <Link to={`/shelf/${shelf._id}`} style={{ color: 'inherit' }}> {/* Link to the shelf's details page */}
+              <FolderOutlined style={{ marginRight: 8 }} /> {/* Folder icon for representing shelves */}
+              {t('shelfList.shelfName', { name: shelf.name, count: shelf.books.length })} {/* Localized shelf name and book count */}
             </Link>
           </StyledListItem>
         )}
-        bordered
+        bordered // Add a border around each list item for visual separation
       />
     </ShelfListContainer>
   );
 };
 
-export default ShelfList;
+// Export the component using React.memo to prevent unnecessary re-renders
+export default React.memo(ShelfList);

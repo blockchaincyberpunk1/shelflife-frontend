@@ -1,89 +1,88 @@
+/**
+ * PasswordReset.js
+ * 
+ * This component renders a form that allows users to request a password reset by providing their email.
+ * It uses `react-hook-form` for form handling and validation, `useAuth` for managing the password reset logic,
+ * and `react-i18next` for localization support. Styles are applied using Emotion's CSS-in-JS.
+ */
+
 import React from 'react';
-import { useForm } from 'react-hook-form'; // React Hook Form for form handling and validation
-import { useAuth } from '../../context/AuthContext'; // Use AuthContext for requesting password reset
-import ErrorMessage from '../common/ErrorMessage'; // Error message component for form errors
-import { Spin } from 'antd'; // Ant Design spinner for loading states
-import styled from '@emotion/styled'; // Emotion's styled component for reusable styles
-
-// Styled container for the password reset form
-const FormContainer = styled.div`
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #3a3651; /* Background color from the provided palette */
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  color: #ffffff;
-`;
-
-// Styled submit button for the form
-const FormButton = styled.button`
-  background-color: #494761; /* Use one of the provided colors */
-  color: #ffffff;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-
-  &:hover {
-    background-color: #3d3a54;
-  }
-
-  &:disabled {
-    background-color: #312c49;
-    cursor: not-allowed;
-  }
-`;
+import { useForm } from 'react-hook-form'; // Import react-hook-form for managing form state and validation
+import { useAuth } from '../../hooks/useAuth'; // Import custom useAuth hook for authentication logic
+import { useTranslation } from 'react-i18next'; // Import i18n hook for localization support
+import { css } from '@emotion/react'; // Import Emotion for styling
+import {
+  formContainerStyles,
+  buttonStyles,
+  inputFieldStyles,
+  labelStyles,
+  errorMessageStyles,
+} from '../../assets/styles/globalStyles'; // Import global styles from globalStyles
+import ErrorMessage from '../ui/ErrorMessage'; // Error message component for displaying any form errors
+import { Spin } from 'antd'; // Import Ant Design's Spin component for loading state
 
 const PasswordReset = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm(); // React Hook Form setup
-  const { requestPasswordReset, isLoading, error } = useAuth(); // Use AuthContext to request password reset
+  // useForm hook to handle form logic, with validation support
+  const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Form submission handler
+  // useAuth hook to access password reset function and loading/error state
+  const { requestPasswordReset, isLoading, error } = useAuth();
+
+  // useTranslation hook to get the translation function
+  const { t } = useTranslation();
+
+  /**
+   * onSubmit function
+   * This function is called when the form is submitted. It triggers the password reset request.
+   * 
+   * @param {Object} data - The form data, which includes the user's email.
+   */
   const onSubmit = async (data) => {
     try {
-      await requestPasswordReset(data.email); // Call requestPasswordReset with the provided email
-      // Here, you can display a success message or redirect the user
-      alert('Password reset link sent to your email.');
+      // Call the requestPasswordReset function from the useAuth hook
+      await requestPasswordReset(data.email);
+      // Show an alert to notify the user of the success
+      alert(t('passwordReset.success'));
     } catch (err) {
-      console.error('Password reset error:', err); // Handle any errors (note: API errors handled in AuthContext)
+      // Log any unexpected errors to the console (API errors are handled in useAuth)
+      console.error('Password reset error:', err);
     }
   };
 
   return (
-    <FormContainer> {/* Form container styled with Emotion */}
-      <h2>Reset Password</h2>
+    <div css={css`${formContainerStyles}`}> {/* Apply global form container styles */}
+      <h2>{t('passwordReset.heading')}</h2> {/* Localized heading for "Password Reset" */}
 
-      {/* Display error message if request fails */}
+      {/* Display error message, if any, using the ErrorMessage component */}
       {error && <ErrorMessage message={error} />}
 
-      <form onSubmit={handleSubmit(onSubmit)}> {/* React Hook Form handles validation */}
+      {/* Form for password reset, handled by react-hook-form */}
+      <form onSubmit={handleSubmit(onSubmit)}>
         <div>
-          <label htmlFor="email">Email:</label>
-          <input 
-            type="email" 
-            id="email" 
+          {/* Email input field */}
+          <label htmlFor="email" css={css`${labelStyles}`}>{t('passwordReset.emailLabel')}</label>
+          <input
+            type="email"
+            id="email"
+            css={css`${inputFieldStyles}`} // Apply global input field styles
             {...register('email', {
-              required: 'Email is required', // Validation rule for email
+              required: t('validation.required', { field: t('passwordReset.email') }), // Localized validation message for required field
               pattern: {
-                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Basic email format validation
-                message: 'Enter a valid email address',
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Regular expression for basic email format validation
+                message: t('validation.emailInvalid'), // Localized validation message for invalid email format
               },
             })}
           />
-          {/* Display validation error for email */}
-          {errors.email && <p className="error">{errors.email.message}</p>}
+          {/* Display validation error message for the email field */}
+          {errors.email && <p css={css`${errorMessageStyles}`}>{errors.email.message}</p>}
         </div>
 
-        {/* Submit button with loading spinner */}
-        <FormButton type="submit" disabled={isLoading}>
-          {isLoading ? <Spin /> : 'Send Reset Link'} {/* Ant Design spinner for loading state */}
-        </FormButton>
+        {/* Submit button */}
+        <button type="submit" disabled={isLoading} css={css`${buttonStyles}`}>
+          {isLoading ? <Spin /> : t('passwordReset.submitButton')} {/* Show spinner during loading */}
+        </button>
       </form>
-    </FormContainer>
+    </div>
   );
 };
 

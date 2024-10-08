@@ -1,116 +1,118 @@
+/**
+ * Login Component
+ * 
+ * This component renders the login form, allowing users to authenticate using their email and password.
+ * It utilizes the `useAuth` custom hook to handle the login process and `react-i18next` for localization.
+ * Emotion's `css` is used to apply consistent styling across the form.
+ */
+
 import React from 'react';
-import { useForm } from 'react-hook-form'; // React Hook Form for form handling
-import { Link, useLocation, useNavigate } from 'react-router-dom'; // React Router for navigation
-import { useAuth } from '../../context/AuthContext'; // Auth context to handle authentication
-import ErrorMessage from '../common/ErrorMessage'; // Error message component for displaying errors
-import { Spin } from 'antd'; // Ant Design spinner for loading states
-import styled from '@emotion/styled'; // Emotion's styled component for reusable styles
-
-// Define styled components for the form container and button
-const FormContainer = styled.div`
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 20px;
-  background-color: #3a3651; /* Use one of the provided colors */
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
-  color: #ffffff;
-`;
-
-const FormButton = styled.button`
-  background-color: #494761; /* Use one of the provided colors */
-  color: #ffffff;
-  border: none;
-  border-radius: 5px;
-  padding: 10px 20px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-
-  &:hover {
-    background-color: #3d3a54;
-  }
-
-  &:disabled {
-    background-color: #312c49;
-    cursor: not-allowed;
-  }
-`;
+import { useForm } from 'react-hook-form'; // Library to manage form validation and submission
+import { useNavigate, useLocation, Link } from 'react-router-dom'; // React Router for navigation
+import { useAuth } from '../../hooks/useAuth'; // Custom hook to access authentication state and actions
+import { useTranslation } from 'react-i18next'; // Hook for accessing the i18n translation functions
+import ErrorMessage from '../ui/ErrorMessage'; // Error message component for displaying any form errors
+import { Spin } from 'antd'; // Ant Design spinner to indicate loading state
+import {
+  formContainerStyles,
+  inputFieldStyles,
+  buttonStyles,
+  labelStyles,
+  errorMessageStyles,
+} from '../../assets/styles/globalStyles'; // Global styles for form and input elements
 
 const Login = () => {
-  const { register, handleSubmit, formState: { errors } } = useForm(); // Destructure form-related methods and state from useForm
-  const { login, isLoading, error } = useAuth(); // Extract login, isLoading, and error from AuthContext
-  const navigate = useNavigate(); // Hook to programmatically navigate
-  const location = useLocation(); // Hook to get the current location
+  // Initialize React Hook Form with validation management
+  const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // Form submission handler
+  // Access the authentication-related actions and states from the AuthContext
+  const { login, isLoading, error } = useAuth();
+
+  // Initialize translation hook from i18n
+  const { t } = useTranslation();
+
+  // Hooks for navigation and redirecting post-login
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  /**
+   * Function to handle form submission
+   * @param {Object} data - The submitted form data, containing email and password
+   */
   const onSubmit = async (data) => {
     try {
-      await login(data.email, data.password); // Call login function from AuthContext
-      const from = location.state?.from?.pathname || '/'; // Get the intended redirect page or default to home
-      navigate(from, { replace: true }); // Redirect after successful login
+      // Attempt to log in the user with the provided email and password
+      await login(data.email, data.password);
+      
+      // Redirect the user to the intended page after successful login, or default to '/'
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
     } catch (err) {
-      console.error('Login error:', err); // Handle any unexpected errors (note: API errors handled in AuthContext)
+      console.error('Login error:', err); // Handle unexpected errors, if any
     }
   };
 
   return (
-    <FormContainer> {/* Styled container for the form */}
-      <h2>Login to ShelfLife</h2>
+    <div css={formContainerStyles}> {/* Apply global form container styles */}
+      <h2>{t('login.title')}</h2> {/* Display localized title using i18n */}
 
-      {/* Display error message if login fails */}
+      {/* Conditionally render an error message if login fails */}
       {error && <ErrorMessage message={error} />}
 
-      <form onSubmit={handleSubmit(onSubmit)}> {/* React Hook Form handles validation */}
+      {/* Render the login form, with validation and form submission handled by React Hook Form */}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Email input field */}
         <div>
-          <label htmlFor="email">Email:</label>
+          <label htmlFor="email" css={labelStyles}>{t('login.emailLabel')}</label>
           <input
             type="email"
             id="email"
             {...register('email', {
-              required: 'Email is required', // Validation rule for email
+              required: t('login.emailRequired'), // Localized validation message for required field
               pattern: {
-                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-                message: 'Enter a valid email address', // Custom error message for invalid email format
+                value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, // Basic email pattern validation
+                message: t('login.emailInvalid'), // Localized error message for invalid email format
               },
             })}
+            css={inputFieldStyles} // Apply global input field styles
           />
-          {/* Display validation error for email */}
-          {errors.email && <p className="error">{errors.email.message}</p>}
+          {/* Conditionally render error message for email validation */}
+          {errors.email && <p css={errorMessageStyles}>{errors.email.message}</p>}
         </div>
 
+        {/* Password input field */}
         <div>
-          <label htmlFor="password">Password:</label>
+          <label htmlFor="password" css={labelStyles}>{t('login.passwordLabel')}</label>
           <input
             type="password"
             id="password"
             {...register('password', {
-              required: 'Password is required', // Validation rule for password
+              required: t('login.passwordRequired'), // Localized validation message for required field
               minLength: {
-                value: 6,
-                message: 'Password must be at least 6 characters long', // Custom error message for password length
+                value: 6, // Minimum length of 6 characters for password
+                message: t('login.passwordMinLength'), // Localized error message for minimum length
               },
             })}
+            css={inputFieldStyles} // Apply global input field styles
           />
-          {/* Display validation error for password */}
-          {errors.password && <p className="error">{errors.password.message}</p>}
+          {/* Conditionally render error message for password validation */}
+          {errors.password && <p css={errorMessageStyles}>{errors.password.message}</p>}
         </div>
 
-        {/* Button that changes to loading state if login is in progress */}
-        <FormButton type="submit" disabled={isLoading}>
-          {isLoading ? <Spin /> : 'Login'} {/* Ant Design spinner for loading state */}
-        </FormButton>
+        {/* Submit button with loading indicator */}
+        <button type="submit" css={buttonStyles} disabled={isLoading}>
+          {isLoading ? <Spin /> : t('login.submit')} {/* Show a spinner when loading, else show submit text */}
+        </button>
       </form>
 
-      {/* Links for sign-up and password reset */}
+      {/* Links to sign up and password reset pages */}
       <p>
-        Don't have an account? <Link to="/signup">Sign Up</Link>
+        {t('login.noAccount')} <Link to="/signup">{t('login.signupLink')}</Link> {/* Sign up link */}
       </p>
       <p>
-        Forgot password? <Link to="/password-reset">Reset Password</Link>
+        {t('login.forgotPassword')} <Link to="/password-reset">{t('login.resetLink')}</Link> {/* Password reset link */}
       </p>
-    </FormContainer>
+    </div>
   );
 };
 

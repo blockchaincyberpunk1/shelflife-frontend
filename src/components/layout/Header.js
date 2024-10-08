@@ -1,88 +1,81 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // Import Link and useNavigate for navigation
-import { useAuth } from '../../context/AuthContext'; // Import the custom AuthContext hook to manage user state
-import styled from '@emotion/styled'; // Import Emotion for styling
-import { Button, Layout, Menu } from 'antd'; // Import Ant Design's Button, Layout, and Menu components
-import { UserOutlined, LogoutOutlined, BookOutlined } from '@ant-design/icons'; // Import Ant Design icons for UI enhancements
+/**
+ * Header.js
+ * 
+ * This component provides the navigation header for the app. It includes links to various sections of the app 
+ * and displays options based on whether the user is logged in or not. 
+ * It uses the `useAuth` custom hook for managing authentication and `react-i18next` for handling translations.
+ * Ant Design components are used for layout and menu, while `react-router-dom` manages navigation.
+ */
 
-// Destructure the Header component from Ant Design's Layout
+import React from 'react';
+import { Link } from 'react-router-dom'; // React Router for navigation
+import { useAuth } from '../../hooks/useAuth'; // Custom hook for authentication
+import { useTranslation } from 'react-i18next'; // i18n hook for localization
+import { css } from '@emotion/react'; // Emotion for CSS-in-JS styling
+import { Layout, Menu } from 'antd'; // Ant Design components for UI layout and menu
+import { UserOutlined, BookOutlined } from '@ant-design/icons'; // Ant Design icons for UI enhancement
+import LogoutButton from '../auth/LogoutButton'; // Import the LogoutButton component
+import { logoStyles, headerContainerStyles, navMenuStyles } from '../../assets/styles/globalStyles'; // Import global styles
+
+// Destructure Ant Design's Layout component to use its Header
 const { Header: AntHeader } = Layout;
 
-// Styled component for the logo using Emotion
-const Logo = styled.img`
-  width: 150px;         /* Set logo width */
-  height: auto;         /* Maintain aspect ratio */
-  margin-right: 20px;   /* Add spacing to the right */
-`;
-
-// Styled component for the header container using Emotion
-const HeaderContainer = styled.div`
-  display: flex;                     /* Flexbox for layout */
-  justify-content: space-between;    /* Space between logo and nav menu */
-  align-items: center;               /* Vertically center the items */
-  padding: 0 20px;                   /* Add padding for spacing */
-  background-color: #312c49;         /* Background color from your palette */
-`;
-
-// Styled component for the Ant Design Menu
-const NavMenu = styled(Menu)`
-  background-color: transparent;     /* Transparent background to blend with header */
-  border-bottom: none;               /* Remove the default border */
-`;
-
+/**
+ * Header Component
+ * 
+ * This component renders a navigation header with different options based on the user's authentication state.
+ * It conditionally shows login, signup, and profile-related links. If the user is logged in, a logout button is also shown.
+ */
 const Header = () => {
-  const { user, logout } = useAuth(); // Destructure user and logout function from AuthContext
-  const navigate = useNavigate(); // Initialize useNavigate for programmatic navigation
-
-  // Function to handle logout and redirect to login page
-  const handleLogout = () => {
-    logout(); // Call the logout function to clear authentication state
-    navigate('/login'); // Redirect the user to the login page after logout
-  };
+  const { user } = useAuth(); // Access the user state from useAuth hook
+  const { t } = useTranslation(); // Access translation function from react-i18next
 
   return (
-    <AntHeader>
-      <HeaderContainer>
-        {/* Link to home with the logo */}
-        <Link to="/">
-          <Logo src="/assets/images/ShelfLife-Logo.png" alt="ShelfLife Logo" />
+    <AntHeader> {/* Ant Design's Header component */}
+      <div css={css`${headerContainerStyles}`}> {/* Apply global header container styles */}
+        
+        {/* Logo section linking to the homepage */}
+        <Link to="/"> {/* Clicking the logo navigates to the homepage */}
+          <img 
+            src="/assets/images/ShelfLife-Logo.png" 
+            alt="ShelfLife Logo" 
+            css={css`${logoStyles}`} // Apply logo styles
+          />
         </Link>
 
         {/* Navigation Menu */}
-        <NavMenu mode="horizontal" theme="dark">
+        <Menu mode="horizontal" theme="dark" css={css`${navMenuStyles}`}> {/* Apply global menu styles */}
           {user ? (
+            // Show menu items for logged-in users
             <>
-              {/* If the user is authenticated, show profile, books, and logout options */}
               <Menu.Item key="profile" icon={<UserOutlined />}>
-                <Link to="/profile">Profile</Link>
+                <Link to="/profile">{t('header.profile')}</Link> {/* Link to user profile */}
               </Menu.Item>
               <Menu.Item key="books" icon={<BookOutlined />}>
-                <Link to="/books">My Books</Link>
+                <Link to="/books">{t('header.myBooks')}</Link> {/* Link to user's books */}
               </Menu.Item>
-              <Menu.Item key="logout" icon={<LogoutOutlined />}>
-                {/* Logout button with logout logic */}
-                <Button type="text" onClick={handleLogout} style={{ color: 'white' }}>
-                  Logout
-                </Button>
+              {/* Logout Button as a separate component */}
+              <Menu.Item key="logout">
+                <LogoutButton /> {/* Import and render the LogoutButton component */}
               </Menu.Item>
               {/* Display a welcome message with the user's username */}
               <Menu.Item key="welcome" disabled>
-                Welcome, {user.username}!
+                {t('header.welcome')}, {user.username}!
               </Menu.Item>
             </>
           ) : (
+            // Show menu items for guests (not logged in)
             <>
-              {/* If the user is not authenticated, show login and signup options */}
               <Menu.Item key="login">
-                <Link to="/login">Login</Link>
+                <Link to="/login">{t('header.login')}</Link> {/* Link to login page */}
               </Menu.Item>
               <Menu.Item key="signup">
-                <Link to="/signup">Signup</Link>
+                <Link to="/signup">{t('header.signup')}</Link> {/* Link to signup page */}
               </Menu.Item>
             </>
           )}
-        </NavMenu>
-      </HeaderContainer>
+        </Menu>
+      </div>
     </AntHeader>
   );
 };

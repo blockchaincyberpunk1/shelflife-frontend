@@ -1,95 +1,132 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { shelfAPI } from '../api/shelfAPI';
-import { useAuth } from './AuthContext'; // Import the useAuth hook for user authentication
+import React, { createContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { shelfAPI } from '../api/shelfAPI'; // API functions for shelf operations
+import { useAuth } from './AuthContext'; // Hook for accessing authenticated user data
 
-// Create the ShelfContext to manage shelf-related state and functions
+// Create the ShelfContext to provide shelf-related data and actions to other components
 const ShelfContext = createContext();
 
 export const ShelfProvider = ({ children }) => {
-  // Get the authenticated user from the AuthContext
-  const { user } = useAuth(); 
+  const { user } = useAuth(); // Access the authenticated user from AuthContext
+  const [shelves, setShelves] = useState([]); // Holds the list of shelves
+  const [isLoading, setIsLoading] = useState(true); // Manages loading state
+  const [error, setError] = useState(null); // Holds any error messages from API requests
+  const [cache, setCache] = useState(new Map()); // Map for caching API responses
 
-  // State for storing shelves
-  const [shelves, setShelves] = useState([]);
-  // State for loading status (true while fetching or updating shelves)
-  const [isLoading, setIsLoading] = useState(true);
-  // State for storing any errors that occur during API interactions
-  const [error, setError] = useState(null);
+  /**
+   * Fetch shelves from the API or cache if available, ensuring we only fetch if a user is authenticated.
+   * Uses the user’s ID to create a cache key specific to them.
+   */
+  const fetchShelves = useCallback(async () => {
+    if (!user) return; // Avoid fetching if no user is authenticated
 
-  // Fetch shelves when the component mounts or when the user logs in/out
+    const cacheKey = `shelves-${user._id}`;
+    if (cache.has(cacheKey)) {
+      setShelves(cache.get(cacheKey)); // Load shelves from cache if available
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const fetchedShelves = await shelfAPI.getShelvesByUserId(user._id); // Fetch shelves from API
+      setShelves(fetchedShelves); // Update state with fetched shelves
+      setCache(prevCache => new Map(prevCache).set(cacheKey, fetchedShelves)); // Cache the result
+    } catch (err) {
+      console.error('Error fetching shelves:', err);
+      setError(err.message || 'Failed to fetch shelves.');
+    } finally {
+      setIsLoading(false); // Stop loading after the fetch completes
+    }
+  }, [user, cache]);
+
+  // Fetch shelves whenever the component mounts or the user changes
   useEffect(() => {
-    const fetchShelves = async () => {
-      if (user) { // Ensure a user is logged in before fetching shelves
-        try {
-          const fetchedShelves = await shelfAPI.getShelvesByUserId(user._id); // API call to get user's shelves
-          setShelves(fetchedShelves); // Update state with fetched shelves
-        } catch (err) {
-          console.error('Error fetching shelves:', err); // Log error
-          setError(err.message || 'Failed to fetch shelves.'); // Set error message
-        }
-      }
-      setIsLoading(false); // Stop loading after the fetch operation is complete
-    };
+    fetchShelves();
+  }, [fetchShelves]);
 
-    fetchShelves(); // Fetch shelves on component mount or user login
-  }, [user]); // Re-run effect when the user changes (e.g., login/logout)
-
-  // Function to create a new shelf
-  const createShelf = async (shelfName) => {
+  /**
+   * Creates a new shelf for the authenticated user.
+   * Updates the shelves state and cache with the newly created shelf.
+   * @param {string} shelfName - The name of the new shelf.
+   */
+  const createShelf = useCallback(async (shelfName) => {
     try {
-      const newShelf = await shelfAPI.createShelf({ userId: user._id, name: shelfName }); // API call to create shelf
-      setShelves([...shelves, newShelf]); // Add new shelf to the current list of shelves
+      const newShelf = await shelfAPI.createShelf({ userId: user._id, name: shelfName });
+      setShelves(prevShelves => {
+        const updatedShelves = [...prevShelves, newShelf];
+        setCache(prevCache => new Map(prevCache).set(`shelves-${user._id}`, updatedShelves));
+        return updatedShelves;
+      });
     } catch (err) {
-      console.error('Error creating shelf:', err); // Log error
-      setError(err.message || 'Failed to create shelf.'); // Set error message
+      console.error('Error creating shelf:', err);
+      setError(err.message || 'Failed to create shelf.');
     }
-  };
+  }, [user, setShelves, setCache]);
 
-  // Function to update an existing shelf
-  const updateShelf = async (shelfId, updateData) => {
+  /**
+   * Updates an existing shelf by shelf ID and updates the state and cache immutably.
+   * @param {string} shelfId - ID of the shelf to be updated.
+   * @param {object} updateData - Data to update the shelf with.
+   */
+  const updateShelf = useCallback(async (shelfId, updateData) => {
     try {
-      const updatedShelf = await shelfAPI.updateShelf(shelfId, user._id, updateData); // API call to update shelf
-      // Update the shelf in the state
-      setShelves(prevShelves => prevShelves.map(shelf => 
-        shelf._id === shelfId ? updatedShelf : shelf // Replace the updated shelf
-      ));
+      const updatedShelf = await shelfAPI.updateShelf(shelfId, user._id, updateData);
+      setShelves(prevShelves => {
+        const updatedShelves = prevShelves.map(shelf => 
+          shelf._id === shelfId ? updatedShelf : shelf
+        );
+        setCache(prevCache => new Map(prevCache).set(`shelves-${user._id}`, updatedShelves));
+        return updatedShelves;
+      });
     } catch (err) {
-      console.error('Error updating shelf:', err); // Log error
-      setError(err.message || 'Failed to update shelf.'); // Set error message
+      console.error('Error updating shelf:', err);
+      setError(err.message || 'Failed to update shelf.');
     }
-  };
+  }, [user, setShelves, setCache]);
 
-  // Function to delete a shelf
-  const deleteShelf = async (shelfId) => {
+  /**
+   * Deletes a shelf by ID and updates the state and cache immutably.
+   * @param {string} shelfId - ID of the shelf to delete.
+   */
+  const deleteShelf = useCallback(async (shelfId) => {
     try {
-      await shelfAPI.deleteShelf(shelfId, user._id); // API call to delete the shelf
-      // Remove the deleted shelf from the state
-      setShelves(prevShelves => prevShelves.filter(shelf => shelf._id !== shelfId));
+      await shelfAPI.deleteShelf(shelfId, user._id);
+      setShelves(prevShelves => {
+        const updatedShelves = prevShelves.filter(shelf => shelf._id !== shelfId);
+        setCache(prevCache => new Map(prevCache).set(`shelves-${user._id}`, updatedShelves));
+        return updatedShelves;
+      });
     } catch (err) {
-      console.error('Error deleting shelf:', err); // Log error
-      setError(err.message || 'Failed to delete shelf.'); // Set error message
+      console.error('Error deleting shelf:', err);
+      setError(err.message || 'Failed to delete shelf.');
     }
-  };
+  }, [user, setShelves, setCache]);
 
-  // Context value that provides state and functions to consuming components
-  const contextValue = {
-    shelves, // List of shelves
-    isLoading, // Loading state
-    error, // Any error that occurs
-    createShelf, // Function to create a shelf
-    updateShelf, // Function to update a shelf
-    deleteShelf, // Function to delete a shelf
-  };
+  // Memoize the context value to avoid unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    shelves,
+    isLoading,
+    error,
+    createShelf,
+    updateShelf,
+    deleteShelf,
+  }), [shelves, isLoading, error, createShelf, updateShelf, deleteShelf]);
 
-  // Return the provider with the context value passed to children components
   return (
     <ShelfContext.Provider value={contextValue}>
-      {children} {/* Render child components */}
+      {children}
     </ShelfContext.Provider>
   );
 };
 
-// Custom hook to use ShelfContext in other components
+/**
+ * Custom hook for accessing ShelfContext, ensuring it is used within a ShelfProvider.
+ * @returns {object} - The context value from ShelfProvider.
+ * @throws {Error} - If hook is used outside ShelfProvider.
+ */
 export const useShelf = () => {
-  return React.useContext(ShelfContext); // Use the React hook to consume the context
+  const context = React.useContext(ShelfContext);
+  if (!context) {
+    throw new Error('useShelf must be used within a ShelfProvider');
+  }
+  return context;
 };

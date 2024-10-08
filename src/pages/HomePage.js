@@ -1,83 +1,93 @@
-/** HomePage.js
- * Main homepage displaying the user's shelves and books.
- * Uses Ant Design for layout, Emotion for styling, and custom components like ShelfList and BookList.
- * Also includes animation from React Spring and optimization using react-lazyload.
+/**
+ * HomePage.js
+ * 
+ * The main homepage displaying the user's shelves and books. 
+ * It integrates with ShelfList and BookList components, Ant Design for layout,
+ * Emotion for styling, and react-spring for smooth animations. Lazy loading is
+ * used for performance optimization when rendering the list of shelves and books.
  */
 
 import React from 'react';
-import { Layout, Row, Col } from 'antd'; // Import Ant Design components for layout
+import { Layout, Row, Col } from 'antd'; // Ant Design layout components
 import { css } from '@emotion/react'; // Emotion for CSS-in-JS styling
-import { useShelf } from '../../context/ShelfContext'; // Context for shelves
-import { useBook } from '../../context/BookContext'; // Context for books
-import ShelfList from '../shelves/ShelfList'; // Component to display list of shelves
-import BookList from '../books/BookList'; // Component to display list of books
-import { useAuth } from '../../context/AuthContext'; // Context for authentication
-import { useSpring, animated } from 'react-spring'; // React Spring for animations
-import LazyLoad from 'react-lazyload'; // Lazy loading images for optimization
+import { useShelf } from '../hooks/useShelf'; // Custom hook for managing shelf state
+import { useBook } from '../hooks/useBook'; // Custom hook for managing book state
+import ShelfList from '../components/shelves/ShelfList'; // Component to display list of shelves
+import BookList from '../components/books/BookList'; // Component to display list of books
+import { useAuth } from '../hooks/useAuth'; // Custom hook for managing authentication state
+import { useSpring, animated } from 'react-spring'; // React Spring for smooth animations
+import LazyLoad from 'react-lazyload'; // Lazy loading for optimizing component rendering
 
-// Ant Design Layout Components
+// Ant Design Layout components for page structure
 const { Header, Content, Sider } = Layout;
 
+/**
+ * HomePage Component
+ * 
+ * Displays the user's shelves in a sidebar and books in the main content area.
+ * Integrates lazy loading for performance optimization and animations for smoother UX.
+ */
 const HomePage = () => {
-  const { user } = useAuth(); // Retrieve the authenticated user
-  const { shelves } = useShelf(); // Retrieve the user's shelves
-  const { books } = useBook(); // Retrieve the user's books
+  const { user } = useAuth(); // Get the authenticated user from the AuthContext
+  const { shelves } = useShelf(); // Get the user's shelves from ShelfContext
+  const { books } = useBook(); // Get the user's books from BookContext
 
-  // Animation for the shelf list
+  // Animation configuration for the shelf list using React Spring
   const springProps = useSpring({
-    opacity: 1,
-    transform: 'translateY(0)',
-    from: { opacity: 0, transform: 'translateY(-20px)' },
+    opacity: 1, // The component fades in
+    transform: 'translateY(0)', // Translate to the original position
+    from: { opacity: 0, transform: 'translateY(-20px)' }, // Initially faded out and slightly off-screen
+    config: { tension: 200, friction: 20 }, // Animation configuration
   });
 
-  // Emotion CSS for custom styling
+  // CSS-in-JS using Emotion for the homepage layout and style
   const homePageStyles = css`
     .homepage {
       background-color: #312c49;
       color: white;
-      min-height: 100vh;
+      min-height: 100vh; /* Full height of the viewport */
     }
     .sider {
       background-color: #494761;
     }
     .content {
-      padding: 24px;
+      padding: 24px; /* Padding around the content area */
     }
     .header {
       background-color: #3c3853;
       color: white;
       text-align: center;
       font-size: 1.5rem;
+      padding: 16px 0;
     }
   `;
 
   return (
     <Layout className="homepage" css={homePageStyles}>
-      {/* Ant Design Header */}
+      {/* Ant Design Header with a welcome message */}
       <Header className="header">
-        Welcome {user?.username}, to ShelfLife! {/* Display the user's name */}
+        {`Welcome, ${user?.username || 'Guest'} to ShelfLife!`} {/* Display user’s name if available, else 'Guest' */}
       </Header>
 
       <Layout>
-        {/* Ant Design Sider for the shelf list */}
+        {/* Sidebar displaying the list of shelves */}
         <Sider width={300} className="sider">
-          <animated.div style={springProps}>
-            {/* ShelfList with lazy loading */}
-            <LazyLoad height={200} offset={100}>
-              <ShelfList shelves={shelves} />
+          <animated.div style={springProps}> {/* Apply animation to the shelf list */}
+            <LazyLoad height={200} offset={100}> {/* Lazy load the ShelfList component for optimization */}
+              <ShelfList shelves={shelves} /> {/* Pass the shelves data to the ShelfList component */}
             </LazyLoad>
           </animated.div>
         </Sider>
 
-        {/* Main content area */}
+        {/* Main content area for displaying the user's books */}
         <Content className="content">
-          <Row gutter={[16, 16]}>
+          <Row gutter={[16, 16]}> {/* Ant Design's grid system with 16px gutter */}
             <Col span={24}>
-              <h2>Books from All Shelves</h2>
+              <h2>Books from All Shelves</h2> {/* Section heading for books */}
 
-              {/* BookList with lazy loading */}
+              {/* Lazy load the BookList component for optimization */}
               <LazyLoad height={200} offset={100}>
-                <BookList books={books} />
+                <BookList books={books} /> {/* Pass the books data to the BookList component */}
               </LazyLoad>
             </Col>
           </Row>

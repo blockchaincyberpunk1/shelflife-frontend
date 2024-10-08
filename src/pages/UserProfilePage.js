@@ -1,34 +1,28 @@
-/** UserProfilePage.js
- * Page to display and update the user's profile.
- * Integrates Ant Design for layout and form components, Emotion for styling, React Hook Form for form handling, 
- * Axios for API requests, and context management via the UserContext.
- * Supports localization with react-i18next and animations using react-spring for smooth transitions.
+/**
+ * UserProfilePage.js
+ * 
+ * This page displays and allows the user to update their profile and account settings.
+ * It integrates Ant Design for layout, Emotion for styling, React Hook Form for form handling,
+ * and context management via the useUser hook. Localization support is added with react-i18next.
+ * It reuses the UserProfile and Settings components for the form and settings updates.
  */
 
 import React from 'react';
-import { useForm } from 'react-hook-form'; // React Hook Form for form validation and handling
-import { useUser } from '../../context/UserContext'; // Context for accessing user-related state and actions
-import { Layout, Form, Input, Button, Spin } from 'antd'; // Ant Design for form and layout components
-import { useSpring, animated } from 'react-spring'; // React Spring for animations
-import { css } from '@emotion/react'; // Emotion for styling
-import ErrorMessage from '../common/ErrorMessage'; // Component to display errors
+import { Layout, Spin, Alert } from 'antd'; // Ant Design components for layout and feedback
+import { useTranslation } from 'react-i18next'; // For i18n localization
+import { css } from '@emotion/react'; // Emotion for CSS-in-JS styling
+import { useAuth } from '../../hooks/useAuth'; // Hook to access user data and profile actions
+import UserProfile from '../../components/auth/UserProfile'; // Reuse the UserProfile component
+import Settings from '../../components/auth/Settings'; // Reuse the Settings component for preferences
+import ErrorMessage from '../../components/ui/ErrorMessage'; // Custom component for error messages
 
 const { Content } = Layout;
 
 const UserProfilePage = () => {
-  const { profile, isLoading, error, updateProfile } = useUser(); // Access the user's profile, loading state, and actions
-  const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: profile, // Pre-fill form fields with user profile data
-  });
+  const { t } = useTranslation(); // Initialize translation hook for i18n
+  const { profile, isLoading, error } = useAuth(); // Access user data and profile management actions from context
 
-  // React Spring animation for form transitions
-  const springProps = useSpring({
-    opacity: 1,
-    transform: 'translateY(0)',
-    from: { opacity: 0, transform: 'translateY(20px)' },
-  });
-
-  // Emotion CSS for custom styling
+  // CSS-in-JS styles using Emotion for the page layout and content
   const userProfilePageStyles = css`
     .user-profile-page {
       background-color: #312c49;
@@ -41,83 +35,63 @@ const UserProfilePage = () => {
       padding: 24px;
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 24px;
     }
-    .form-item {
-      margin-bottom: 16px;
-    }
-    .form-buttons {
-      display: flex;
-      justify-content: flex-end;
+    .settings-form {
+      background-color: #494761;
+      padding: 24px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
   `;
 
-  const onSubmit = async (data) => {
-    try {
-      await updateProfile(data); // Call the function to update the profile
-      // Optionally show a success message or redirect
-    } catch (err) {
-      console.error('Error updating profile:', err);
-    }
-  };
-
+  // Display a loading spinner while the profile data is being fetched
   if (isLoading) {
-    return <Spin size="large" />; // Show loading spinner if profile data is being fetched
+    return (
+      <Layout className="user-profile-page" css={userProfilePageStyles}>
+        <Content>
+          <Spin size="large" tip={t('profile.loading')} /> {/* Localized loading message */}
+        </Content>
+      </Layout>
+    );
   }
 
+  // If an error occurs, display a custom error message component
   if (error) {
-    return <ErrorMessage message={error} />; // Show error message if there's an error
+    return (
+      <Layout className="user-profile-page" css={userProfilePageStyles}>
+        <Content>
+          <ErrorMessage message={error} /> {/* Display error message */}
+        </Content>
+      </Layout>
+    );
   }
 
+  // If no profile is found, display an alert with a localized message
   if (!profile) {
-    return <div>Profile not found.</div>; // Handle case where profile data is not available
+    return (
+      <Layout className="user-profile-page" css={userProfilePageStyles}>
+        <Content>
+          <Alert message={t('profile.notFound')} type="warning" showIcon /> {/* Localized not found alert */}
+        </Content>
+      </Layout>
+    );
   }
 
   return (
     <Layout className="user-profile-page" css={userProfilePageStyles}>
       <Content>
-        <animated.div style={springProps} className="profile-form">
-          <h2>My Profile</h2>
+        {/* Profile Editing Section */}
+        <div className="profile-form">
+          <h2>{t('profile.myProfile')}</h2> {/* Localized title for "My Profile" */}
+          <UserProfile /> {/* Render the UserProfile component */}
+        </div>
 
-          <Form onFinish={handleSubmit(onSubmit)} layout="vertical">
-            {/* Username field */}
-            <Form.Item
-              label="Username"
-              className="form-item"
-              validateStatus={errors.username ? 'error' : ''}
-              help={errors.username ? errors.username.message : ''}
-            >
-              <Input
-                type="text"
-                id="username"
-                {...register('username', { required: 'Username is required' })}
-                defaultValue={profile.username}
-              />
-            </Form.Item>
-
-            {/* Email field */}
-            <Form.Item
-              label="Email"
-              className="form-item"
-              validateStatus={errors.email ? 'error' : ''}
-              help={errors.email ? errors.email.message : ''}
-            >
-              <Input
-                type="email"
-                id="email"
-                {...register('email', { required: 'Email is required' })}
-                defaultValue={profile.email}
-              />
-            </Form.Item>
-
-            {/* You can add additional fields like phone number, address, etc. */}
-            
-            <div className="form-buttons">
-              <Button type="primary" htmlType="submit">
-                Save Changes
-              </Button>
-            </div>
-          </Form>
-        </animated.div>
+        {/* Account Settings Section */}
+        <div className="settings-form">
+          <h2>{t('settings.title')}</h2> {/* Localized title for "Account Settings" */}
+          <Settings /> {/* Render the Settings component */}
+        </div>
       </Content>
     </Layout>
   );

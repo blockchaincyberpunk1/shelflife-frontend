@@ -1,96 +1,213 @@
-import React, { createContext, useState, useEffect } from 'react';
-import { authAPI } from '../api/authAPI'; // Import API functions for auth (login, signup, etc.)
-import { tokenHandler } from '../utils/tokenHandler'; // Utility for handling tokens (localStorage, etc.)
+import React, { createContext, useState, useEffect, useCallback } from 'react';
+import jwtDecode from 'jwt-decode'; // Utility to decode JWT tokens
+import { authAPI } from '../api/authAPI'; // API functions for authentication and user profile management
+import { getToken, setToken, removeToken, isTokenExpired, refreshAuthToken } from '../utils/tokenHandler'; // Token handling utilities
 
-// Create the AuthContext
+// Create AuthContext to provide authentication data to other components
 const AuthContext = createContext();
 
-// AuthProvider component to wrap around the application or specific parts of it
+/**
+ * AuthProvider component to manage authentication and user profile data
+ */
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null); // State to hold the authenticated user's data
-  const [isLoading, setIsLoading] = useState(true); // Loading state to manage async operations
-  const [error, setError] = useState(null); // Error state for any authentication errors
+  const [user, setUser] = useState(null); // Holds authenticated user data
+  const [profile, setProfile] = useState(null); // Holds user profile data
+  const [isLoading, setIsLoading] = useState(true); // Manages loading state during async operations
+  const [error, setError] = useState(null); // Holds any authentication-related errors
+  const [settings, setSettings] = useState(null); // Holds user settings (email preferences, etc.)
 
-  // useEffect to check if the user is already authenticated when the app loads
+  /**
+   * Refresh the JWT token to prevent session expiry
+   */
+  const refreshToken = useCallback(async () => {
+    try {
+      const newToken = await refreshAuthToken(); // Request new token from the server
+      setToken(newToken); // Store new token in localStorage
+      const decoded = jwtDecode(newToken); // Decode new token to get user data
+      setUser(decoded); // Update user state with decoded data
+    } catch (refreshError) {
+      console.error('Token refresh failed:', refreshError);
+      logout(); // Log out the user if token refresh fails
+    }
+  }, []);
+
+  /**
+   * Initialize authentication on component mount
+   */
   useEffect(() => {
-    const checkAuthentication = async () => {
-      const token = tokenHandler.getToken(); // Retrieve token from local storage
+    const initializeAuth = async () => {
+      const token = getToken(); // Retrieve token from localStorage
       if (token) {
-        try {
-          const fetchedUser = await authAPI.getCurrentUser(token); // API call to fetch user data if token exists
-          setUser(fetchedUser); // Set the user data in state
-        } catch (err) {
-          console.error("Error fetching user data:", err);
-          setError(err.message || 'An error occurred during authentication.'); // Handle and log any errors
+        if (isTokenExpired(token)) {
+          await refreshToken(); // Refresh token if expired
+        } else {
+          try {
+            const userData = jwtDecode(token); // Decode token to extract user data
+            setUser(userData); // Set user data in state
+          } catch (decodeError) {
+            console.error('Token decoding failed:', decodeError);
+            logout(); // Log out if token decoding fails
+          }
         }
       }
-      setIsLoading(false); // Whether user is authenticated or not, stop loading
+      setIsLoading(false); // Stop loading once authentication check is complete
     };
 
-    checkAuthentication(); // Call the function to check auth on load
-  }, []); // Empty dependency array ensures this runs only once when the component mounts
+    initializeAuth(); // Run the authentication check on component mount
+  }, [refreshToken]);
 
-  // Function to handle login
+  /**
+   * Log in the user and store their JWT token
+   * @param {string} email - User email
+   * @param {string} password - User password
+   */
   const login = async (email, password) => {
-    setIsLoading(true); // Set loading to true while performing the API call
-    setError(null); // Clear any previous errors
+    setIsLoading(true); // Start loading
+    setError(null); // Clear previous errors
 
     try {
-      const token = await authAPI.login(email, password); // Call API to log in and retrieve token
-      tokenHandler.setToken(token); // Store the token (e.g., in localStorage)
-      const fetchedUser = await authAPI.getCurrentUser(token); // Fetch the user's data with the token
-      setUser(fetchedUser); // Set the user in state
+      const token = await authAPI.login(email, password); // Authenticate user and retrieve token
+      setToken(token); // Store token in localStorage
+      const userData = jwtDecode(token); // Decode token to get user data
+      setUser(userData); // Set user data in state
     } catch (err) {
-      setError(err.message || 'Invalid email or password.'); // Set error message on failure
+      setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
-      setIsLoading(false); // Stop the loading spinner once the process completes
+      setIsLoading(false); // Stop loading
     }
   };
 
-  // Function to handle signup
+  /**
+   * Sign up a new user and store their JWT token
+   * @param {Object} userData - Data for new user registration
+   */
   const signup = async (userData) => {
-    setIsLoading(true); // Set loading to true while performing the API call
-    setError(null); // Clear any previous errors
+    setIsLoading(true); // Start loading
+    setError(null); // Clear previous errors
 
     try {
-      const token = await authAPI.signup(userData); // Call API to sign up and retrieve token
-      tokenHandler.setToken(token); // Store the token (e.g., in localStorage)
-      const fetchedUser = await authAPI.getCurrentUser(token); // Fetch the user's data with the token
-      setUser(fetchedUser); // Set the user in state
+      const token = await authAPI.signup(userData); // Register user and retrieve token
+      setToken(token); // Store token in local storage
+      const user = jwtDecode(token); // Decode token to get user data
+      setUser(user); // Set user data in state
     } catch (err) {
-      setError(err.message || 'An error occurred during signup.'); // Set error message on failure
+      setError(err.message || 'Signup failed. Please try again.');
     } finally {
-      setIsLoading(false); // Stop the loading spinner once the process completes
+      setIsLoading(false); // Stop loading
     }
   };
 
-  // Function to handle logout
+  /**
+   * Log out the user and clear their data
+   */
   const logout = () => {
-    tokenHandler.removeToken(); // Remove the token from storage
-    setUser(null); // Clear the user state to log out the user
+    removeToken(); // Remove token from localStorage
+    setUser(null); // Clear user state
+    setProfile(null); // Clear profile state
+    setSettings(null); // Clear settings state
   };
 
-  // Future: Add password reset functions here when needed, e.g., request password reset, confirm password reset, etc.
+  /**
+   * Fetch the user's profile
+   */
+  const fetchUserProfile = async () => {
+    try {
+      const userProfile = await authAPI.getUserProfile(); // Fetch user profile using API
+      setProfile(userProfile); // Store profile in state
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+      setError(err.message || 'Failed to fetch user profile.');
+    }
+  };
 
-  // Context value to be provided to the rest of the application
+  /**
+   * Update the user's profile (e.g., username, email, profile picture)
+   * @param {Object} updatedData - Updated profile data
+   */
+  const updateProfile = async (updatedData) => {
+    try {
+      const updatedProfile = await authAPI.updateUserProfile(updatedData); // Update user profile using API
+      setProfile(updatedProfile); // Store updated profile in state
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      setError(err.message || 'Failed to update profile.');
+    }
+  };
+
+  /**
+   * Update the user's password
+   * @param {string} currentPassword - The user's current password
+   * @param {string} newPassword - The new password to set
+   */
+  const updatePassword = async (currentPassword, newPassword) => {
+    try {
+      await authAPI.updatePassword(currentPassword, newPassword); // Update password using API
+      logout(); // Automatically log out the user after a successful password update
+    } catch (err) {
+      console.error('Error updating password:', err);
+      setError(err.message || 'Failed to update password.');
+    }
+  };
+
+  /**
+   * Fetch user-specific settings (e.g., notification preferences)
+   */
+  const fetchUserSettings = async () => {
+    try {
+      const userSettings = await authAPI.getUserSettings(); // Fetch user settings from API
+      setSettings(userSettings); // Store user settings in state
+    } catch (err) {
+      console.error('Error fetching user settings:', err);
+      setError(err.message || 'Failed to fetch user settings.');
+    }
+  };
+
+  /**
+   * Update user-specific settings (e.g., email preferences, notifications)
+   * @param {Object} updatedSettings - Updated user settings
+   */
+  const updateUserSettings = async (updatedSettings) => {
+    try {
+      const newSettings = await authAPI.updateUserSettings(updatedSettings); // Update user settings using API
+      setSettings(newSettings); // Store updated settings in state
+    } catch (err) {
+      console.error('Error updating user settings:', err);
+      setError(err.message || 'Failed to update user settings.');
+    }
+  };
+
+  // Provide authentication state, profile state, and functions to other components
   const contextValue = {
-    user, // Current user data (null if not logged in)
-    isLoading, // Loading state (true while API calls are pending)
-    error, // Error state for displaying error messages
-    login, // Function to log in the user
-    signup, // Function to sign up the user
-    logout, // Function to log out the user
-    // Add more functions (like password reset) when ready...
+    user,
+    profile,
+    settings,
+    isLoading,
+    error,
+    login,
+    signup,
+    logout,
+    fetchUserProfile,
+    updateProfile,
+    updatePassword,
+    fetchUserSettings,
+    updateUserSettings,
   };
 
   return (
     <AuthContext.Provider value={contextValue}>
-      {children} {/* Render child components (usually the whole app) */}
+      {children} {/* Render children components wrapped by AuthContext */}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook for easy access to the AuthContext in other components
+/**
+ * Custom hook to provide easy access to the AuthContext
+ * @returns {Object} - Authentication context value
+ */
 export const useAuth = () => {
-  return React.useContext(AuthContext); // Return the context value so components can use auth functionality
+  const context = React.useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

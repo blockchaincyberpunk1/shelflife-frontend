@@ -1,30 +1,32 @@
-/** ShelfPage.js
- * Page to display all books on a specific shelf.
- * Utilizes Ant Design for layout, Emotion for styling, and components such as ShelfDetails and BookList.
- * Integrates react-router-dom for navigation, react-spring for animations, and lazy loading for optimization.
+/**
+ * ShelfPage.js
+ * This page displays details about a specific shelf and its books, using the ShelfDetail component.
+ * It integrates with the `useShelf` hook to access shelf-related data and uses react-spring for animation.
+ * Internationalization (i18n) is supported by react-i18next, and Ant Design is used for UI components.
  */
 
 import React from 'react';
-import { useParams } from 'react-router-dom'; // To get the shelf ID from the URL
-import { useShelf } from '../../context/ShelfContext'; // Shelf context for managing shelves
-import { useBook } from '../../context/BookContext'; // Book context for managing books
-import { Layout, Row, Col, Spin } from 'antd'; // Ant Design components for layout and loading spinner
-import BookList from '../books/BookList'; // Component to display a list of books
-import { useSpring, animated } from 'react-spring'; // React Spring for animations
-import LazyLoad from 'react-lazyload'; // For lazy loading components and images
+import { useParams } from 'react-router-dom'; // Hook to extract shelfId from the URL
+import { useShelf } from '../../hooks/useShelf'; // Hook to access shelf-related state and actions
+import { Layout, Spin, Alert } from 'antd'; // Ant Design components for layout, spinner, and alerts
+import ShelfDetail from '../../components/shelves/ShelfDetail'; // Component to display shelf details
+import { useSpring, animated } from 'react-spring'; // For smooth animations
+import LazyLoad from 'react-lazyload'; // For optimizing component loading
+import { useTranslation } from 'react-i18next'; // For internationalization
 import { css } from '@emotion/react'; // Emotion for styling
+import { globalContainerStyles, errorMessageStyles } from '../../assets/styles/globalStyles'; // Global styles
 
 const { Content } = Layout;
 
 const ShelfPage = () => {
   const { shelfId } = useParams(); // Get the shelf ID from the URL
-  const { shelves, isLoading, error } = useShelf(); // Access shelf state and functions
-  const { updateBookShelf } = useBook(); // Access book state to allow updating book's shelf
+  const { t } = useTranslation(); // Hook for localization
+  const { shelves, isLoading, error } = useShelf(); // Access shelf data from ShelfContext
 
-  // Find the specific shelf using the shelfId from the URL
+  // Find the specific shelf by ID
   const shelf = shelves.find((shelf) => shelf._id === shelfId);
 
-  // React Spring animation for the page load
+  // React Spring animation for smooth appearance of the shelf details
   const springProps = useSpring({
     opacity: 1,
     transform: 'translateY(0)',
@@ -33,12 +35,9 @@ const ShelfPage = () => {
 
   // Emotion CSS for custom styling
   const shelfPageStyles = css`
-    .shelf-page {
-      background-color: #312c49;
-      min-height: 100vh;
-      padding: 24px;
-      color: white;
-    }
+    ${globalContainerStyles}; /* Apply global container styles */
+    background-color: #312c49;
+    color: white;
     .shelf-details {
       background-color: #494761;
       padding: 24px;
@@ -47,38 +46,42 @@ const ShelfPage = () => {
     }
   `;
 
+  // Display loading spinner if data is still being fetched
   if (isLoading) {
-    return <Spin size="large" />; // Ant Design spinner for loading state
+    return <Spin tip={t('shelfPage.loading')} size="large" />;
   }
 
+  // Display error message if there was an error fetching shelf data
   if (error) {
-    return <div className="error-message">Error: {error}</div>; // Display any error that occurs
+    return (
+      <Alert
+        message={t('shelfPage.errorTitle')}
+        description={t('shelfPage.errorDescription', { error })}
+        type="error"
+        showIcon
+        css={errorMessageStyles}
+      />
+    );
   }
 
+  // Display a message if the shelf is not found
   if (!shelf) {
-    return <div>Shelf not found.</div>; // Handle case where the shelf is not found
+    return <div>{t('shelfPage.shelfNotFound')}</div>;
   }
 
   return (
     <Layout className="shelf-page" css={shelfPageStyles}>
       <Content>
-        <Row gutter={[16, 16]}>
-          <Col span={24}>
-            {/* Lazy loading the shelf details with animation */}
-            <LazyLoad height={200} offset={100}>
-              <animated.div style={springProps} className="shelf-details">
-                <h2>{shelf.name}</h2> {/* Display the shelf name */}
-                <p>{shelf.books.length} books</p> {/* Display the number of books */}
-                
-                {/* Display the list of books on this shelf */}
-                <BookList books={shelf.books} onUpdateShelf={updateBookShelf} />
-              </animated.div>
-            </LazyLoad>
-          </Col>
-        </Row>
+        <LazyLoad height={200} offset={100}>
+          {/* Animate shelf details with React Spring */}
+          <animated.div style={springProps} className="shelf-details">
+            {/* Display shelf details using ShelfDetail component */}
+            <ShelfDetail shelf={shelf} />
+          </animated.div>
+        </LazyLoad>
       </Content>
     </Layout>
   );
 };
 
-export default ShelfPage;
+export default React.memo(ShelfPage); // Memoize to avoid unnecessary re-renders
