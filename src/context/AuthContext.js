@@ -1,13 +1,14 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import jwtDecode from 'jwt-decode'; // Utility to decode JWT tokens
 import { authAPI } from '../api/authAPI'; // API functions for authentication and user profile management
-import { getToken, setToken, removeToken, isTokenExpired, refreshAuthToken } from '../utils/tokenHandler'; // Token handling utilities
+import { getToken, setToken, removeToken, isTokenExpired } from '../utils/tokenHandler'; // Token handling utilities
 
 // Create AuthContext to provide authentication data to other components
 const AuthContext = createContext();
 
 /**
  * AuthProvider component to manage authentication and user profile data
+ * Provides methods for login, logout, signup, profile fetching, settings, etc.
  */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null); // Holds authenticated user data
@@ -21,7 +22,7 @@ export const AuthProvider = ({ children }) => {
    */
   const refreshToken = useCallback(async () => {
     try {
-      const newToken = await refreshAuthToken(); // Request new token from the server
+      const newToken = await authAPI.refreshToken(getToken()); // Request new token from the server
       setToken(newToken); // Store new token in localStorage
       const decoded = jwtDecode(newToken); // Decode new token to get user data
       setUser(decoded); // Update user state with decoded data
@@ -87,7 +88,7 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const token = await authAPI.signup(userData); // Register user and retrieve token
-      setToken(token); // Store token in local storage
+      setToken(token); // Store token in localStorage
       const user = jwtDecode(token); // Decode token to get user data
       setUser(user); // Set user data in state
     } catch (err) {
@@ -112,7 +113,8 @@ export const AuthProvider = ({ children }) => {
    */
   const fetchUserProfile = async () => {
     try {
-      const userProfile = await authAPI.getUserProfile(); // Fetch user profile using API
+      const token = getToken();
+      const userProfile = await authAPI.getUserProfile(token); // Fetch user profile using API
       setProfile(userProfile); // Store profile in state
     } catch (err) {
       console.error('Error fetching user profile:', err);
@@ -126,7 +128,8 @@ export const AuthProvider = ({ children }) => {
    */
   const updateProfile = async (updatedData) => {
     try {
-      const updatedProfile = await authAPI.updateUserProfile(updatedData); // Update user profile using API
+      const token = getToken();
+      const updatedProfile = await authAPI.updateUserProfile(updatedData, token); // Update user profile using API
       setProfile(updatedProfile); // Store updated profile in state
     } catch (err) {
       console.error('Error updating profile:', err);
@@ -141,7 +144,8 @@ export const AuthProvider = ({ children }) => {
    */
   const updatePassword = async (currentPassword, newPassword) => {
     try {
-      await authAPI.updatePassword(currentPassword, newPassword); // Update password using API
+      const token = getToken();
+      await authAPI.updateUserPassword(currentPassword, newPassword, token); // Update password using API
       logout(); // Automatically log out the user after a successful password update
     } catch (err) {
       console.error('Error updating password:', err);
@@ -149,12 +153,44 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // PASSWORD MANAGEMENT FUNCTIONS
+
+  /**
+   * Request a password reset
+   * @param {string} email - The email of the user requesting the password reset
+   */
+  const requestPasswordReset = async (email) => {
+    try {
+      await authAPI.requestPasswordReset(email); // Request password reset
+    } catch (err) {
+      console.error('Error requesting password reset:', err);
+      setError(err.message || 'Failed to request password reset.');
+    }
+  };
+
+  /**
+   * Reset the user's password using a valid reset token
+   * @param {string} resetToken - The password reset token provided via email
+   * @param {string} newPassword - The new password to set
+   */
+  const resetPassword = async (resetToken, newPassword) => {
+    try {
+      await authAPI.resetPassword(resetToken, newPassword); // Reset password using token
+    } catch (err) {
+      console.error('Error resetting password:', err);
+      setError(err.message || 'Failed to reset password.');
+    }
+  };
+
+  // USER SETTINGS FUNCTIONS
+
   /**
    * Fetch user-specific settings (e.g., notification preferences)
    */
   const fetchUserSettings = async () => {
     try {
-      const userSettings = await authAPI.getUserSettings(); // Fetch user settings from API
+      const token = getToken();
+      const userSettings = await authAPI.fetchUserSettings(token); // Fetch user settings from API
       setSettings(userSettings); // Store user settings in state
     } catch (err) {
       console.error('Error fetching user settings:', err);
@@ -168,11 +204,27 @@ export const AuthProvider = ({ children }) => {
    */
   const updateUserSettings = async (updatedSettings) => {
     try {
-      const newSettings = await authAPI.updateUserSettings(updatedSettings); // Update user settings using API
+      const token = getToken();
+      const newSettings = await authAPI.updateUserSettings(updatedSettings, token); // Update user settings using API
       setSettings(newSettings); // Store updated settings in state
     } catch (err) {
       console.error('Error updating user settings:', err);
       setError(err.message || 'Failed to update user settings.');
+    }
+  };
+
+  /**
+   * Fetch a user by their unique ID
+   * @param {string} userId - The user's unique ID
+   */
+  const getUserById = async (userId) => {
+    try {
+      const token = getToken();
+      const userData = await authAPI.getUserById(userId, token); // Fetch user by ID using API
+      return userData;
+    } catch (err) {
+      console.error('Error fetching user by ID:', err);
+      setError(err.message || 'Failed to fetch user by ID.');
     }
   };
 
@@ -189,8 +241,11 @@ export const AuthProvider = ({ children }) => {
     fetchUserProfile,
     updateProfile,
     updatePassword,
+    requestPasswordReset,
+    resetPassword,
     fetchUserSettings,
     updateUserSettings,
+    getUserById,
   };
 
   return (

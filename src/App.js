@@ -3,10 +3,10 @@ import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom'; // Import the router for handling routes
 import AppRoutes from './routes/routes'; // Import the main routes file which contains all app routes
 
-// Import custom hooks that manage authentication, books, and shelves logic
-import { AuthProvider } from './hooks/useAuth'; // Custom hook that handles authentication and provides context
-import { BookProvider } from './hooks/useBook'; // Custom hook that manages book-related state and functions
-import { ShelfProvider } from './hooks/useShelf'; // Custom hook that manages shelf-related state and functions
+// Import AuthProvider, BookProvider, ShelfProvider that manage authentication, books, and shelves logic
+import { AuthProvider } from './context/AuthContext'; // AuthContext provider for managing user authentication
+import { BookProvider } from './context/BookContext'; // BookContext provider for managing book data
+import { ShelfProvider } from './context/ShelfContext'; // ShelfContext provider for managing shelf data
 
 // Import layout components
 import Header from './components/layout/Header'; // Header component displayed on all pages
