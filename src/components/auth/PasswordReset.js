@@ -22,18 +22,18 @@ import ErrorMessage from '../ui/ErrorMessage'; // Error message component for di
 import { Spin } from 'antd'; // Import Ant Design's Spin component for loading state
 
 const PasswordReset = () => {
-  // useForm hook to handle form logic, with validation support
+  // Initialize useForm hook to handle form logic and validation
   const { register, handleSubmit, formState: { errors } } = useForm();
 
-  // useAuth hook to access password reset function and loading/error state
+  // Destructure requestPasswordReset function and isLoading, error state from useAuth hook
   const { requestPasswordReset, isLoading, error } = useAuth();
 
-  // useTranslation hook to get the translation function
+  // Initialize useTranslation hook for i18n localization
   const { t } = useTranslation();
 
   /**
    * onSubmit function
-   * This function is called when the form is submitted. It triggers the password reset request.
+   * This function is triggered when the form is submitted. It handles the password reset request.
    * 
    * @param {Object} data - The form data, which includes the user's email.
    */
@@ -41,11 +41,10 @@ const PasswordReset = () => {
     try {
       // Call the requestPasswordReset function from the useAuth hook
       await requestPasswordReset(data.email);
-      // Show an alert to notify the user of the success
-      alert(t('passwordReset.success'));
+      // Optionally, show a more user-friendly success message instead of an alert (for better UX)
+      alert(t('passwordReset.success')); // Can replace this with a UI notification
     } catch (err) {
-      // Log any unexpected errors to the console (API errors are handled in useAuth)
-      console.error('Password reset error:', err);
+      console.error('Password reset error:', err); // Log any errors to the console
     }
   };
 
@@ -53,18 +52,21 @@ const PasswordReset = () => {
     <div css={css`${formContainerStyles}`}> {/* Apply global form container styles */}
       <h2>{t('passwordReset.heading')}</h2> {/* Localized heading for "Password Reset" */}
 
-      {/* Display error message, if any, using the ErrorMessage component */}
+      {/* Conditionally render error message, if any, using the ErrorMessage component */}
       {error && <ErrorMessage message={error} />}
 
       {/* Form for password reset, handled by react-hook-form */}
       <form onSubmit={handleSubmit(onSubmit)}>
         <div>
           {/* Email input field */}
-          <label htmlFor="email" css={css`${labelStyles}`}>{t('passwordReset.emailLabel')}</label>
+          <label htmlFor="email" css={css`${labelStyles}`} aria-label={t('passwordReset.emailLabel')}>
+            {t('passwordReset.emailLabel')}
+          </label>
           <input
             type="email"
             id="email"
             css={css`${inputFieldStyles}`} // Apply global input field styles
+            aria-required="true" // Mark the field as required for accessibility
             {...register('email', {
               required: t('validation.required', { field: t('passwordReset.email') }), // Localized validation message for required field
               pattern: {
@@ -78,7 +80,12 @@ const PasswordReset = () => {
         </div>
 
         {/* Submit button */}
-        <button type="submit" disabled={isLoading} css={css`${buttonStyles}`}>
+        <button
+          type="submit"
+          disabled={isLoading} // Disable button when form is submitting
+          css={css`${buttonStyles}`} // Apply global button styles
+          aria-label={t('passwordReset.submitButton')} // Add aria-label for accessibility
+        >
           {isLoading ? <Spin /> : t('passwordReset.submitButton')} {/* Show spinner during loading */}
         </button>
       </form>

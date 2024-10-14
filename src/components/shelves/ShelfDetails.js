@@ -1,20 +1,19 @@
 /**
- * ShelfDetail.js
+ * ShelfDetails.js
  * 
  * This component displays detailed information about a specific shelf, including its list of books.
- * It integrates with the ShelfContext and BookContext to fetch shelf and book-related data.
- * The component also allows users to update the shelf name by incorporating the UpdateShelf component.
- * It uses Ant Design for layout and UI, along with Emotion for consistent styling.
+ * It integrates with the ShelfContext to fetch, update, add, or remove books from a shelf.
+ * Users can also edit the shelf name or add/remove books while viewing the shelf details.
+ * The component uses Ant Design for UI and Emotion for consistent styling.
  * Internationalization is handled by react-i18next for multilingual support.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom'; // Hook to get the shelf ID from the URL params
 import { useShelf } from '../../hooks/useShelf'; // Custom hook to access shelf-related actions
-import { useBook } from '../../hooks/useBook'; // Custom hook to access book-related actions
 import BookList from '../books/BookList'; // Component to display the list of books in the shelf
 import UpdateShelf from './UpdateShelf'; // Component to update the shelf name
-import { Typography, Spin, Button } from 'antd'; // Ant Design components for UI
+import { Typography, Spin, Button, Modal, Input } from 'antd'; // Ant Design components for UI
 import styled from '@emotion/styled'; // Emotion for CSS-in-JS styling
 import { useTranslation } from 'react-i18next'; // Hook for i18n support (translations)
 import {
@@ -47,10 +46,23 @@ const ShelfTitle = styled(Title)`
 // Component for the shelf details view
 const ShelfDetail = () => {
   const { shelfId } = useParams(); // Get the shelfId from the URL params using the useParams hook
-  const { shelves, isLoading, error } = useShelf(); // Access shelf-related state and actions
-  const { updateBookShelf } = useBook(); // Access the function to update a book's shelf
+  const {
+    getShelfById,
+    addBookToShelf,
+    removeBookFromShelf,
+    shelves,
+    isLoading,
+    error
+  } = useShelf(); // Access shelf-related state and actions from ShelfContext
   const { t } = useTranslation(); // Initialize translation hook for i18n
   const [isEditing, setIsEditing] = useState(false); // State to control whether the shelf is being edited
+  const [isAddBookModalVisible, setIsAddBookModalVisible] = useState(false); // State for controlling add book modal visibility
+  const [bookIdToAdd, setBookIdToAdd] = useState(''); // State to store the book ID to be added
+
+  // Fetch the shelf details when the component mounts or shelfId changes
+  useEffect(() => {
+    getShelfById(shelfId);
+  }, [shelfId, getShelfById]);
 
   // Memoize the shelf data to prevent unnecessary re-renders when shelfId or shelves change
   const shelf = useMemo(() => shelves.find((shelf) => shelf._id === shelfId), [shelves, shelfId]);
@@ -58,6 +70,27 @@ const ShelfDetail = () => {
   // Handle toggling between edit mode and view mode
   const toggleEditMode = () => {
     setIsEditing((prev) => !prev);
+  };
+
+  // Handle adding a book to the shelf
+  const handleAddBook = async () => {
+    if (!bookIdToAdd) return;
+    try {
+      await addBookToShelf(shelfId, bookIdToAdd);
+      setIsAddBookModalVisible(false);
+      setBookIdToAdd('');
+    } catch (err) {
+      console.error('Error adding book:', err);
+    }
+  };
+
+  // Handle removing a book from the shelf
+  const handleRemoveBook = async (bookId) => {
+    try {
+      await removeBookFromShelf(shelfId, bookId);
+    } catch (err) {
+      console.error('Error removing book:', err);
+    }
   };
 
   // Display loading spinner while waiting for the shelf data
@@ -96,8 +129,35 @@ const ShelfDetail = () => {
             {t('shelfDetail.editShelf')} {/* Localized button text for "Edit Shelf" */}
           </Button>
 
+          {/* Button to add a book to the shelf */}
+          <Button
+            type="dashed"
+            css={buttonStyles}
+            onClick={() => setIsAddBookModalVisible(true)}
+            style={{ marginLeft: '10px' }}
+          >
+            {t('shelfDetail.addBook')} {/* Localized button text for "Add Book" */}
+          </Button>
+
+          {/* Modal to add a book to the shelf */}
+          <Modal
+            title={t('shelfDetail.addBookModalTitle')}
+            visible={isAddBookModalVisible}
+            onOk={handleAddBook}
+            onCancel={() => setIsAddBookModalVisible(false)}
+          >
+            <Input
+              placeholder={t('shelfDetail.bookIdPlaceholder')} // Placeholder text for book ID input
+              value={bookIdToAdd}
+              onChange={(e) => setBookIdToAdd(e.target.value)}
+            />
+          </Modal>
+
           {/* Render the list of books in the shelf */}
-          <BookList books={shelf.books} onUpdateShelf={updateBookShelf} /> {/* Pass the books and updateBookShelf function */}
+          <BookList
+            books={shelf.books}
+            onRemoveBook={handleRemoveBook} // Pass the handleRemoveBook function to the BookList component
+          />
         </>
       )}
     </ShelfDetailsContainer>

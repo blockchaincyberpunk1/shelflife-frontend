@@ -17,6 +17,7 @@ import Footer from './components/layout/Footer'; // Footer component displayed a
 import ErrorBoundary from './components/ui/ErrorBoundary'; // ErrorBoundary to handle and display errors gracefully
 
 // Import global styles for consistent UI styling across the app
+import { Global } from '@emotion/react'; // Import Global for applying global styles
 import { globalStyles } from './assets/styles/globalStyles'; // Global CSS styles applied across the app
 
 /**
@@ -39,18 +40,22 @@ const App = () => {
           <ShelfProvider>
             {/* Router handles the navigation and routing within the application */}
             <Router>
-              {/* Apply the global CSS styles using Emotion's css prop */}
-              <div css={globalStyles}>
+              {/* Apply the global CSS styles using Emotion's Global component */}
+              <Global styles={globalStyles} />
+              {/* Main application layout */}
+              <div className="app-container">
                 {/* Header component: displayed at the top of all pages */}
                 <Header />
                 
-                {/* Sidebar component: navigation for shelves, displayed on the left side of all pages */}
-                <Sidebar />
-                
-                {/* Main content area: defined by the routes and pages */}
-                <main>
-                  <AppRoutes /> {/* AppRoutes handles the routing between different pages (e.g., HomePage, LoginPage) */}
-                </main>
+                <div className="main-content-wrapper">
+                  {/* Sidebar component: navigation for shelves, displayed on the left side of all pages */}
+                  <Sidebar />
+                  
+                  {/* Main content area: defined by the routes and pages */}
+                  <main className="main-content">
+                    <AppRoutes /> {/* AppRoutes handles the routing between different pages (e.g., HomePage, LoginPage) */}
+                  </main>
+                </div>
                 
                 {/* Footer component: displayed at the bottom of all pages */}
                 <Footer />

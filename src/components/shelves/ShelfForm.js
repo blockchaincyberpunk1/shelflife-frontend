@@ -1,12 +1,13 @@
 /**
  * ShelfForm.js
  * 
- * This component allows users to create a new shelf by entering a shelf name.
- * It integrates with the `useShelf` hook for managing shelf creation and uses `react-i18next` for internationalization (i18n).
+ * This component provides a form for users to create or edit a shelf by entering the shelf name.
+ * The component integrates with the `useShelf` hook for managing shelf creation or updating, 
+ * and uses `react-i18next` for internationalization (i18n).
  * Ant Design is used for form components and UI, while Emotion is used for consistent styling.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next'; // Import i18n hook for translations
 import { useShelf } from '../../hooks/useShelf'; // Custom hook to access shelf-related logic
 import styled from '@emotion/styled'; // For Emotion-based styled components
@@ -34,46 +35,64 @@ const FormHeader = styled.h2`
 /**
  * ShelfForm Component
  * 
- * This component provides a form for users to create a new shelf by entering a name.
- * The shelf creation process is handled using the `useShelf` custom hook.
+ * This component provides a form for users to create a new shelf or edit an existing one.
+ * The shelf creation or update process is handled using the `useShelf` custom hook.
  * Validation is provided for the shelf name input field to ensure it is not empty.
  * 
- * @param {Function} onShelfCreated - Callback to execute after the shelf is successfully created (e.g., closing the form).
- * @returns {JSX.Element} - A form component for creating a new shelf.
+ * @param {Object} props - Component props
+ * @param {Function} props.onShelfCreated - Callback to execute after the shelf is successfully created (e.g., closing the form).
+ * @param {Object} props.initialShelfData - Initial data for editing an existing shelf (optional).
+ * @returns {JSX.Element} - A form component for creating or updating a shelf.
  */
-const ShelfForm = ({ onShelfCreated }) => {
-  const { createShelf, error, isLoading } = useShelf(); // Access the shelf creation logic and state (loading, error)
-  const [shelfName, setShelfName] = useState(''); // Local state to track the shelf name input
+const ShelfForm = ({ onShelfCreated, initialShelfData }) => {
+  const { createShelf, updateShelf, error, isLoading } = useShelf(); // Access shelf creation and update logic, loading, and error state
+  const [shelfName, setShelfName] = useState(initialShelfData?.name || ''); // Local state to track the shelf name input
   const { t } = useTranslation(); // Hook to handle translations
+
+  // Determine if the form is being used to edit an existing shelf or create a new one
+  const isEditing = useMemo(() => !!initialShelfData, [initialShelfData]);
 
   // Memoized validation to check if the shelf name is valid (non-empty and trimmed)
   const isShelfNameValid = useMemo(() => shelfName.trim().length > 0, [shelfName]);
 
   /**
-   * Handle form submission to create a new shelf.
-   * If the shelf name is valid, it triggers the `createShelf` function.
+   * Handle form submission to create or update a shelf.
+   * If the shelf name is valid, it triggers the appropriate function based on editing state.
    * @param {Event} e - The form submission event.
    */
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault(); // Prevent default form submission behavior
     if (isShelfNameValid) { // Only proceed if the shelf name is valid
       try {
-        await createShelf(shelfName); // Create the shelf by calling the custom hook function
-        setShelfName(''); // Clear the shelf name input field upon successful creation
+        if (isEditing) {
+          // Update the existing shelf
+          await updateShelf(initialShelfData._id, { name: shelfName });
+        } else {
+          // Create a new shelf
+          await createShelf(shelfName);
+        }
+        setShelfName(''); // Clear the shelf name input field upon successful creation or update
         if (onShelfCreated) {
-          onShelfCreated(); // Optionally, execute the callback to handle post-creation behavior
+          onShelfCreated(); // Optionally, execute the callback to handle post-creation or post-update behavior
         }
       } catch (err) {
-        console.error('Error creating shelf:', err); // Log errors for debugging
+        console.error('Error creating/updating shelf:', err); // Log errors for debugging
       }
     }
-  }, [shelfName, isShelfNameValid, createShelf, onShelfCreated]); // Add dependencies to prevent unnecessary re-renders
+  }, [shelfName, isShelfNameValid, createShelf, updateShelf, isEditing, initialShelfData, onShelfCreated]);
+
+  // Pre-fill the shelf name if editing
+  useEffect(() => {
+    if (initialShelfData) {
+      setShelfName(initialShelfData.name);
+    }
+  }, [initialShelfData]);
 
   return (
     <FormContainer onSubmitCapture={handleSubmit} className="shelf-form">
-      <FormHeader>{t('shelfForm.title')}</FormHeader> {/* Localized form title */}
+      <FormHeader>{isEditing ? t('shelfForm.editTitle') : t('shelfForm.createTitle')}</FormHeader> {/* Localized form title */}
 
-      {/* Display an error message if an error occurs during shelf creation */}
+      {/* Display an error message if an error occurs during shelf creation or update */}
       {error && <Alert message={t(error)} type="error" showIcon />}
 
       {/* Shelf name input field */}
@@ -102,7 +121,7 @@ const ShelfForm = ({ onShelfCreated }) => {
           css={buttonStyles} // Apply global button styles
           disabled={isLoading || !isShelfNameValid} // Disable the button if the form is loading or the shelf name is invalid
         >
-          {isLoading ? t('shelfForm.loading') : t('shelfForm.submit')} {/* Display localized button text */}
+          {isLoading ? t('shelfForm.loading') : isEditing ? t('shelfForm.update') : t('shelfForm.submit')} {/* Display localized button text */}
         </Button>
       </Form.Item>
     </FormContainer>

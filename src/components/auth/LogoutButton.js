@@ -13,29 +13,34 @@ import { css } from '@emotion/react'; // Import css function from Emotion for in
 import { buttonStyles } from '../../assets/styles/globalStyles'; // Import global button styles for consistency
 
 const LogoutButton = () => {
-  // Destructure the logout function from the useAuth hook
+  // Destructure the logout function from the useAuth hook, which manages user authentication actions
   const { logout } = useAuth();
 
-  // Initialize the translation function from react-i18next
+  // Initialize the translation function from react-i18next for localizing the button text
   const { t } = useTranslation();
 
   /**
    * Function to handle the logout process
    * 
    * This function triggers the `logout` function from the AuthContext,
-   * which will clear the user session and remove the token.
+   * which will clear the user session and remove the token from storage.
    */
-  const handleLogout = () => {
-    logout(); // Call the logout function to log the user out
+  const handleLogout = async () => {
+    try {
+      logout(); // Call the logout function to log the user out and clear session data
+    } catch (err) {
+      console.error('Logout failed:', err); // Log any potential errors that might occur during the logout process
+    }
   };
 
   return (
-    // Render a button with the logout action
+    // Render a button with an onClick handler for the logout action
     <button
-      onClick={handleLogout} // Trigger the handleLogout function on click
-      css={css`${buttonStyles}`} // Apply global button styles from Emotion
+      onClick={handleLogout} // Trigger the handleLogout function when clicked
+      css={css`${buttonStyles}`} // Apply global button styles using Emotion for consistency across the app
+      aria-label={t('logout.buttonText')} // Add an aria-label to improve accessibility for screen readers
     >
-      {t('logout.buttonText')} {/* Display localized text using i18n */}
+      {t('logout.buttonText')} {/* Display localized button text using i18n */}
     </button>
   );
 };

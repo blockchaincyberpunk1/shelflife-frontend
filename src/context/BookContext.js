@@ -11,6 +11,7 @@ export const BookProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true); // State to manage loading status
   const [error, setError] = useState(null); // State to hold error messages related to API calls
   const [cache, setCache] = useState(new Map()); // State to cache fetched books for optimized loading
+  const [searchResults, setSearchResults] = useState([]); // State to hold search results
 
   /**
    * Function to fetch all books from the server.
@@ -18,7 +19,6 @@ export const BookProvider = ({ children }) => {
    */
   const fetchBooks = useCallback(async () => {
     if (cache.has('allBooks')) {
-      // If books are cached, load them directly from the cache
       setBooks(cache.get('allBooks'));
       setIsLoading(false);
       return;
@@ -26,13 +26,13 @@ export const BookProvider = ({ children }) => {
 
     try {
       const fetchedBooks = await bookAPI.getAllBooks(); // Fetch books from the API
-      setBooks(fetchedBooks); // Store fetched books in state
+      setBooks(fetchedBooks);
       setCache(prevCache => new Map(prevCache).set('allBooks', fetchedBooks)); // Cache the fetched books
     } catch (err) {
-      console.error('Error fetching books:', err); // Log the error
-      setError(err.message || 'Failed to fetch books.'); // Set error state
+      console.error('Error fetching books:', err);
+      setError(err.message || 'Failed to fetch books.');
     } finally {
-      setIsLoading(false); // End loading state
+      setIsLoading(false);
     }
   }, [cache]);
 
@@ -43,22 +43,46 @@ export const BookProvider = ({ children }) => {
    */
   const getBookById = useCallback(async (bookId) => {
     if (cache.has(bookId)) {
-      // If the book is cached, load it directly from the cache
       setBook(cache.get(bookId));
       setIsLoading(false);
       return;
     }
 
     try {
-      setIsLoading(true); // Start loading
+      setIsLoading(true);
       const fetchedBook = await bookAPI.getBookById(bookId); // Fetch the book from the API
-      setBook(fetchedBook); // Store the fetched book in state
+      setBook(fetchedBook);
       setCache(prevCache => new Map(prevCache).set(bookId, fetchedBook)); // Cache the fetched book
     } catch (err) {
-      console.error('Error fetching book by ID:', err); // Log the error
-      setError(err.message || 'Failed to fetch book details.'); // Set error state
+      console.error('Error fetching book by ID:', err);
+      setError(err.message || 'Failed to fetch book details.');
     } finally {
-      setIsLoading(false); // End loading state
+      setIsLoading(false);
+    }
+  }, [cache]);
+
+  /**
+   * Function to fetch books by shelf ID.
+   * If the books for the shelf are cached, load them from the cache to avoid redundant network requests.
+   * @param {string} shelfId - The ID of the shelf to fetch books from.
+   */
+  const getBooksByShelf = useCallback(async (shelfId) => {
+    if (cache.has(shelfId)) {
+      setBooks(cache.get(shelfId));
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const booksByShelf = await bookAPI.getBooksByShelf(shelfId); // Fetch books by shelf from the API
+      setBooks(booksByShelf);
+      setCache(prevCache => new Map(prevCache).set(shelfId, booksByShelf)); // Cache the books for the shelf
+    } catch (err) {
+      console.error('Error fetching books by shelf:', err);
+      setError(err.message || `Failed to fetch books for shelf ID ${shelfId}.`);
+    } finally {
+      setIsLoading(false);
     }
   }, [cache]);
 
@@ -73,7 +97,6 @@ export const BookProvider = ({ children }) => {
       const updatedBook = await bookAPI.updateBookShelf(bookId, newShelfId); // Update the book's shelf via API
 
       setBooks(prevBooks => {
-        // Update book list immutably: replace the specific book with an updated one
         const updatedBooks = prevBooks.map(book =>
           book.id === bookId ? { ...book, shelf: newShelfId } : book
         );
@@ -81,10 +104,10 @@ export const BookProvider = ({ children }) => {
         return updatedBooks;
       });
 
-      return updatedBook; // Return the updated book for further use
+      return updatedBook;
     } catch (err) {
-      console.error('Error updating book shelf:', err); // Log the error
-      setError(err.message || 'Failed to update the book shelf.'); // Set error state
+      console.error('Error updating book shelf:', err);
+      setError(err.message || 'Failed to update the book shelf.');
     }
   };
 
@@ -95,22 +118,21 @@ export const BookProvider = ({ children }) => {
    */
   const addBook = async (bookData) => {
     try {
-      setIsLoading(true); // Start loading
-      const newBook = await bookAPI.addBook(bookData); // Add a new book via API
+      setIsLoading(true);
+      const newBook = await bookAPI.createBook(bookData); // Add a new book via API
 
       setBooks(prevBooks => {
-        // Add the new book to the current list of books
         const updatedBooks = [...prevBooks, newBook];
         setCache(prevCache => new Map(prevCache).set('allBooks', updatedBooks)); // Cache the new book list
         return updatedBooks;
       });
 
-      return newBook; // Return the added book for further use
+      return newBook;
     } catch (err) {
-      console.error('Error adding book:', err); // Log the error
-      setError(err.message || 'Failed to add the book.'); // Set error state
+      console.error('Error adding book:', err);
+      setError(err.message || 'Failed to add the book.');
     } finally {
-      setIsLoading(false); // End loading state
+      setIsLoading(false);
     }
   };
 
@@ -121,22 +143,21 @@ export const BookProvider = ({ children }) => {
    */
   const updateBook = async (bookId, bookData) => {
     try {
-      setIsLoading(true); // Start loading
+      setIsLoading(true);
       const updatedBook = await bookAPI.updateBook(bookId, bookData); // Update the book via API
 
       setBooks(prevBooks => {
-        // Replace the updated book in the current list
         const updatedBooks = prevBooks.map(book => (book.id === bookId ? updatedBook : book));
         setCache(prevCache => new Map(prevCache).set('allBooks', updatedBooks)); // Cache the updated books
         return updatedBooks;
       });
 
-      return updatedBook; // Return the updated book for further use
+      return updatedBook;
     } catch (err) {
-      console.error('Error updating book:', err); // Log the error
-      setError(err.message || 'Failed to update the book.'); // Set error state
+      console.error('Error updating book:', err);
+      setError(err.message || 'Failed to update the book.');
     } finally {
-      setIsLoading(false); // End loading state
+      setIsLoading(false);
     }
   };
 
@@ -147,20 +168,60 @@ export const BookProvider = ({ children }) => {
    */
   const deleteBook = async (bookId) => {
     try {
-      setIsLoading(true); // Start loading
+      setIsLoading(true);
       await bookAPI.deleteBook(bookId); // Delete the book via API
 
       setBooks(prevBooks => {
-        // Remove the deleted book from the book list
         const updatedBooks = prevBooks.filter(book => book.id !== bookId);
         setCache(prevCache => new Map(prevCache).set('allBooks', updatedBooks)); // Cache the updated book list
         return updatedBooks;
       });
     } catch (err) {
-      console.error('Error deleting book:', err); // Log the error
-      setError(err.message || 'Failed to delete the book.'); // Set error state
+      console.error('Error deleting book:', err);
+      setError(err.message || 'Failed to delete the book.');
     } finally {
-      setIsLoading(false); // End loading state
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Function to search for books by title or author.
+   * Updates search results in local state.
+   * @param {string} query - The search query (e.g., part of the title or author's name).
+   */
+  const searchBooks = async (query) => {
+    try {
+      setIsLoading(true);
+      const results = await bookAPI.searchBooks(query); // Search books via API
+      setSearchResults(results); // Update search results in state
+    } catch (err) {
+      console.error('Error searching for books:', err);
+      setError(err.message || `Failed to search for books with query "${query}".`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Function to add a review to a book.
+   * Updates the specific book in the cache after adding the review.
+   * @param {string} bookId - The ID of the book to review.
+   * @param {Object} reviewData - The review data (rating and comment).
+   */
+  const addReview = async (bookId, reviewData) => {
+    try {
+      const updatedBook = await bookAPI.addReview(bookId, reviewData); // Add review via API
+
+      setBooks(prevBooks => {
+        const updatedBooks = prevBooks.map(book => (book.id === bookId ? updatedBook : book));
+        setCache(prevCache => new Map(prevCache).set('allBooks', updatedBooks)); // Cache the updated books
+        return updatedBooks;
+      });
+
+      return updatedBook;
+    } catch (err) {
+      console.error('Error adding review:', err);
+      setError(err.message || 'Failed to add review.');
     }
   };
 
@@ -171,15 +232,19 @@ export const BookProvider = ({ children }) => {
   const contextValue = useMemo(() => ({
     books,
     book,
+    searchResults,
     isLoading,
     error,
     fetchBooks,
     getBookById,
+    getBooksByShelf, 
     updateBookShelf,
     addBook,
     updateBook,
     deleteBook,
-  }), [books, book, isLoading, error, fetchBooks, getBookById]);
+    searchBooks,
+    addReview,
+  }), [books, book, searchResults, isLoading, error, fetchBooks, getBookById, getBooksByShelf]);
 
   return (
     <BookContext.Provider value={contextValue}>

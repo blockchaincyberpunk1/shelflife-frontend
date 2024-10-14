@@ -26,6 +26,8 @@ export const ShelfProvider = ({ children }) => {
       return;
     }
 
+    setIsLoading(true);
+    setError(null);
     try {
       const fetchedShelves = await shelfAPI.getShelvesByUserId(user._id); // Fetch shelves from API
       setShelves(fetchedShelves); // Update state with fetched shelves
@@ -44,11 +46,32 @@ export const ShelfProvider = ({ children }) => {
   }, [fetchShelves]);
 
   /**
+   * Fetch a specific shelf by its ID.
+   * @param {string} shelfId - The ID of the shelf to fetch.
+   * @returns {Promise<Object>} - The fetched shelf object.
+   */
+  const getShelfById = useCallback(async (shelfId) => {
+    if (!user) return;
+
+    setError(null);
+    try {
+      return await shelfAPI.getShelfById(shelfId);
+    } catch (err) {
+      console.error('Error fetching shelf by ID:', err);
+      setError(err.message || `Failed to fetch shelf with ID ${shelfId}.`);
+      throw err;
+    }
+  }, [user]);
+
+  /**
    * Creates a new shelf for the authenticated user.
    * Updates the shelves state and cache with the newly created shelf.
    * @param {string} shelfName - The name of the new shelf.
    */
   const createShelf = useCallback(async (shelfName) => {
+    if (!user) return;
+
+    setError(null);
     try {
       const newShelf = await shelfAPI.createShelf({ userId: user._id, name: shelfName });
       setShelves(prevShelves => {
@@ -60,7 +83,7 @@ export const ShelfProvider = ({ children }) => {
       console.error('Error creating shelf:', err);
       setError(err.message || 'Failed to create shelf.');
     }
-  }, [user, setShelves, setCache]);
+  }, [user]);
 
   /**
    * Updates an existing shelf by shelf ID and updates the state and cache immutably.
@@ -68,8 +91,11 @@ export const ShelfProvider = ({ children }) => {
    * @param {object} updateData - Data to update the shelf with.
    */
   const updateShelf = useCallback(async (shelfId, updateData) => {
+    if (!user) return;
+
+    setError(null);
     try {
-      const updatedShelf = await shelfAPI.updateShelf(shelfId, user._id, updateData);
+      const updatedShelf = await shelfAPI.updateShelf(shelfId, updateData);
       setShelves(prevShelves => {
         const updatedShelves = prevShelves.map(shelf => 
           shelf._id === shelfId ? updatedShelf : shelf
@@ -81,15 +107,18 @@ export const ShelfProvider = ({ children }) => {
       console.error('Error updating shelf:', err);
       setError(err.message || 'Failed to update shelf.');
     }
-  }, [user, setShelves, setCache]);
+  }, [user]);
 
   /**
    * Deletes a shelf by ID and updates the state and cache immutably.
    * @param {string} shelfId - ID of the shelf to delete.
    */
   const deleteShelf = useCallback(async (shelfId) => {
+    if (!user) return;
+
+    setError(null);
     try {
-      await shelfAPI.deleteShelf(shelfId, user._id);
+      await shelfAPI.deleteShelf(shelfId);
       setShelves(prevShelves => {
         const updatedShelves = prevShelves.filter(shelf => shelf._id !== shelfId);
         setCache(prevCache => new Map(prevCache).set(`shelves-${user._id}`, updatedShelves));
@@ -99,7 +128,57 @@ export const ShelfProvider = ({ children }) => {
       console.error('Error deleting shelf:', err);
       setError(err.message || 'Failed to delete shelf.');
     }
-  }, [user, setShelves, setCache]);
+  }, [user]);
+
+  /**
+   * Adds a book to a specific shelf.
+   * Updates the shelf's state with the new book.
+   * @param {string} shelfId - ID of the shelf to add the book to.
+   * @param {string} bookId - ID of the book to add.
+   */
+  const addBookToShelf = useCallback(async (shelfId, bookId) => {
+    if (!user) return;
+
+    setError(null);
+    try {
+      const updatedShelf = await shelfAPI.addBookToShelf(shelfId, bookId);
+      setShelves(prevShelves => {
+        const updatedShelves = prevShelves.map(shelf => 
+          shelf._id === shelfId ? updatedShelf : shelf
+        );
+        setCache(prevCache => new Map(prevCache).set(`shelves-${user._id}`, updatedShelves));
+        return updatedShelves;
+      });
+    } catch (err) {
+      console.error('Error adding book to shelf:', err);
+      setError(err.message || 'Failed to add book to shelf.');
+    }
+  }, [user]);
+
+  /**
+   * Removes a book from a specific shelf.
+   * Updates the shelf's state without the removed book.
+   * @param {string} shelfId - ID of the shelf to remove the book from.
+   * @param {string} bookId - ID of the book to remove.
+   */
+  const removeBookFromShelf = useCallback(async (shelfId, bookId) => {
+    if (!user) return;
+
+    setError(null);
+    try {
+      const updatedShelf = await shelfAPI.removeBookFromShelf(shelfId, bookId);
+      setShelves(prevShelves => {
+        const updatedShelves = prevShelves.map(shelf => 
+          shelf._id === shelfId ? updatedShelf : shelf
+        );
+        setCache(prevCache => new Map(prevCache).set(`shelves-${user._id}`, updatedShelves));
+        return updatedShelves;
+      });
+    } catch (err) {
+      console.error('Error removing book from shelf:', err);
+      setError(err.message || 'Failed to remove book from shelf.');
+    }
+  }, [user]);
 
   // Memoize the context value to avoid unnecessary re-renders
   const contextValue = useMemo(() => ({
@@ -109,7 +188,10 @@ export const ShelfProvider = ({ children }) => {
     createShelf,
     updateShelf,
     deleteShelf,
-  }), [shelves, isLoading, error, createShelf, updateShelf, deleteShelf]);
+    addBookToShelf,
+    removeBookFromShelf,
+    getShelfById
+  }), [shelves, isLoading, error, createShelf, updateShelf, deleteShelf, addBookToShelf, removeBookFromShelf, getShelfById]);
 
   return (
     <ShelfContext.Provider value={contextValue}>

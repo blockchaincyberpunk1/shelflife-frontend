@@ -1,27 +1,37 @@
 /**
  * SearchPage.js
- * 
+ *
  * This page allows users to search for books and displays the results.
- * It uses Ant Design for layout, React Hook Form for managing the search form, 
- * and the BookContext to handle book search-related actions. 
+ * It uses Ant Design for layout, React Hook Form for managing the search form,
+ * and the BookContext to handle book search-related actions.
  * Lazy loading and animations are implemented with `react-lazyload` and `react-spring`,
  * and react-i18next is used for internationalization.
  */
 
-import React, { useState, useMemo } from 'react';
-import { useForm } from 'react-hook-form'; // For form handling
-import { useTranslation } from 'react-i18next'; // For internationalization
-import { Input, Button, Layout, Pagination } from 'antd'; // Ant Design components for UI elements
-import { css } from '@emotion/react'; // For styling
-import { useSpring, animated } from 'react-spring'; // For animations
-import LazyLoad from 'react-lazyload'; // For lazy loading
-import { useBook } from '../../hooks/useBook'; // Custom hook for book-related logic
-import BookList from '../../components/books/BookList'; // Component to display a list of books
-import LoadingErrorWrapper from '../../components/common/LoadingErrorWrapper'; // Reusable component for loading/error states
-import { buttonStyles, inputFieldStyles, formContainerStyles } from '../../assets/styles/globalStyles'; // Global styles
+import React, { useState, useMemo } from "react";
+import { useForm } from "react-hook-form"; // For form handling
+import { useTranslation } from "react-i18next"; // For internationalization
+import { Input, Button, Layout, Pagination } from "antd"; // Ant Design components for UI elements
+import { css } from "@emotion/react"; // For styling
+import { useSpring, animated } from "react-spring"; // For animations
+import LazyLoad from "react-lazyload"; // For lazy loading
+import { useBook } from "../../hooks/useBook"; // Custom hook for book-related logic
+import BookList from "../../components/books/BookList"; // Component to display a list of books
+import LoadingErrorWrapper from "../../components/common/LoadingErrorWrapper"; // Reusable component for loading/error states
+import {
+  buttonStyles,
+  inputFieldStyles,
+  formContainerStyles,
+} from "../../assets/styles/globalStyles"; // Global styles
 
 const { Content } = Layout; // Ant Design Layout component
 
+/**
+ * SearchPage Component
+ *
+ * This component provides a search feature where users can look for books by title or author.
+ * It includes a form to input the search query, displays results, and uses pagination for navigation through search results.
+ */
 const SearchPage = () => {
   const { t } = useTranslation(); // Translation hook from react-i18next
   const { searchBooks, books, isLoading, error } = useBook(); // Extract necessary methods and state from useBook
@@ -37,8 +47,8 @@ const SearchPage = () => {
   // Animation for book results section
   const springProps = useSpring({
     opacity: 1,
-    transform: 'translateY(0)',
-    from: { opacity: 0, transform: 'translateY(20px)' },
+    transform: "translateY(0)",
+    from: { opacity: 0, transform: "translateY(20px)" },
   });
 
   // Emotion CSS for custom styling
@@ -64,13 +74,16 @@ const SearchPage = () => {
     }
   `;
 
-  // Handle form submission for searching books
+  /**
+   * Handle form submission for searching books.
+   * @param {Object} data - Contains the search query from the form input.
+   */
   const onSubmit = async (data) => {
     try {
       await searchBooks(data.query); // Trigger search function from BookContext
       setCurrentPage(1); // Reset to first page after a new search
     } catch (err) {
-      console.error('Search error:', err);
+      console.error("Search error:", err);
     }
   };
 
@@ -81,13 +94,13 @@ const SearchPage = () => {
           <form onSubmit={handleSubmit(onSubmit)}>
             {/* Input field for search */}
             <Input
-              {...register('query')}
+              {...register("query")}
               css={inputFieldStyles}
-              placeholder={t('searchPage.searchPlaceholder')}
+              placeholder={t("searchPage.searchPlaceholder")}
             />
             {/* Search button */}
             <Button type="primary" htmlType="submit" css={buttonStyles}>
-              {t('searchPage.searchButton')}
+              {t("searchPage.searchButton")}
             </Button>
           </form>
         </div>
@@ -97,7 +110,8 @@ const SearchPage = () => {
           <div className="book-list">
             <LazyLoad height={200} offset={100}>
               <animated.div style={springProps}>
-                <BookList books={paginatedBooks} onUpdateShelf={() => {}} /> {/* Display paginated books */}
+                <BookList books={paginatedBooks} onUpdateShelf={() => {}} />{" "}
+                {/* Display paginated books */}
               </animated.div>
             </LazyLoad>
           </div>
@@ -110,7 +124,7 @@ const SearchPage = () => {
             current={currentPage}
             total={books.length}
             pageSize={10}
-            onChange={page => setCurrentPage(page)}
+            onChange={(page) => setCurrentPage(page)}
           />
         )}
       </Content>

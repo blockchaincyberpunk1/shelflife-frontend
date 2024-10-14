@@ -7,11 +7,11 @@
  * Additionally, the component supports localization using `react-i18next` for text translations.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useShelf } from '../../hooks/useShelf'; // Custom hook to handle shelf actions (update, etc.)
 import { useTranslation } from 'react-i18next'; // Translation hook for internationalization
 import styled from '@emotion/styled'; // Emotion for styling components
-import { Form, Input, Button, Alert } from 'antd'; // Ant Design components for form, input fields, and UI elements
+import { Form, Input, Button, Alert, Spin } from 'antd'; // Ant Design components for form, input fields, and UI elements
 import {
   formContainerStyles,
   buttonStyles,
@@ -39,9 +39,22 @@ const FormHeader = styled.h2`
  * @param {Function} onUpdateCompleted - A callback function to be called after the shelf is successfully updated.
  */
 const UpdateShelf = ({ initialShelfData, onUpdateCompleted }) => {
-  const { updateShelf, error, isLoading } = useShelf(); // Extract shelf update function, loading, and error state from useShelf hook
-  const [shelfName, setShelfName] = useState(initialShelfData.name); // Local state to hold the updated shelf name
+  const { getShelfById, updateShelf, error, isLoading } = useShelf(); // Extract shelf actions from useShelf hook
+  const [shelfName, setShelfName] = useState(initialShelfData?.name || ''); // Local state to hold the updated shelf name
   const { t } = useTranslation(); // Initialize the translation hook for i18n support
+
+  useEffect(() => {
+    const fetchShelfDetails = async () => {
+      if (!initialShelfData?._id) return;
+      try {
+        const shelf = await getShelfById(initialShelfData._id);
+        setShelfName(shelf.name);
+      } catch (err) {
+        console.error('Error fetching shelf details:', err);
+      }
+    };
+    fetchShelfDetails();
+  }, [initialShelfData, getShelfById]);
 
   // Memoized validation check to ensure shelf name is not empty or invalid
   const isShelfNameValid = useMemo(() => shelfName.trim().length > 0, [shelfName]);
@@ -51,25 +64,29 @@ const UpdateShelf = ({ initialShelfData, onUpdateCompleted }) => {
    * 
    * @param {Event} e - The form submission event
    */
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault(); // Prevent the default form submission behavior
-    if (isShelfNameValid) {
-      try {
-        // Call the updateShelf function from the shelf context to update the shelf
-        await updateShelf(initialShelfData._id, shelfName); 
-        setShelfName(''); // Clear the input field after successful update
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault(); // Prevent the default form submission behavior
+      if (isShelfNameValid) {
+        try {
+          // Call the updateShelf function from the shelf context to update the shelf
+          await updateShelf(initialShelfData._id, { name: shelfName });
+          setShelfName(''); // Clear the input field after successful update
 
-        if (onUpdateCompleted) {
-          onUpdateCompleted(); // Trigger the callback passed via props once the update is complete
+          if (onUpdateCompleted) {
+            onUpdateCompleted(); // Trigger the callback passed via props once the update is complete
+          }
+        } catch (err) {
+          console.error('Error updating shelf:', err); // Log any errors encountered during the update
         }
-      } catch (err) {
-        console.error('Error updating shelf:', err); // Log any errors encountered during the update
       }
-    }
-  }, [shelfName, isShelfNameValid, updateShelf, initialShelfData._id, onUpdateCompleted]);
+    },
+    [shelfName, isShelfNameValid, updateShelf, initialShelfData._id, onUpdateCompleted]
+  );
 
   return (
     <FormContainer onSubmitCapture={handleSubmit} className="shelf-update-form"> {/* Ant Design form wrapper */}
+      {isLoading && <Spin tip={t('shelfUpdateForm.loading')} size="large" />} {/* Display loading spinner if loading */}
       <FormHeader>{t('shelfUpdateForm.title')}</FormHeader> {/* Localized form header */}
 
       {/* Display any errors encountered during the update process using Ant Design's Alert component */}

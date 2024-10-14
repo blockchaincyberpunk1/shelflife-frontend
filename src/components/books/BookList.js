@@ -1,20 +1,31 @@
 /**
- * BookList.js
- * This component renders a list of books by mapping over the `books` array and passing
- * each book to the `Book` component. It integrates lazy loading with animations using 
- * `react-lazyload` and `react-spring` for smooth transitions when components are fully loaded.
- * Memoization techniques (React.memo, useMemo) are used to optimize performance and avoid unnecessary re-renders.
+ * BookList Component
+ * Purpose: Displays a list of books, typically used to show books from a shelf or search results.
+ * Context Functions Used:
+ * - fetchBooks: To retrieve all books.
+ * - getBooksByShelf: To retrieve books filtered by shelf.
+ * - searchBooks: If the list displays search results.
+ * - deleteBook: If the component allows deleting books from the list.
+ * Props:
+ * - books: Array of books to be displayed in the list.
+ * - shelfId: (optional) Shelf ID to fetch books filtered by shelf.
+ * - searchQuery: (optional) Query to search for books by title or author.
+ * - onDeleteBook: (optional) Function to delete a book from the list.
+ * Additional Functionality:
+ * - Pagination, lazy loading, or infinite scrolling for large lists.
+ * - Filtering and sorting options based on title, author, or rating.
  */
 
-import React, { useState, useMemo } from 'react';
-import styled from '@emotion/styled'; // Emotion's styled component for reusable styles
-import { Empty } from 'antd'; // Ant Design component for displaying an empty state
-import LazyLoad from 'react-lazyload'; // Lazy loading component for better performance
-import { useSpring, animated } from 'react-spring'; // For animations
-import Book from './Book'; // Import the Book component
-import { useTranslation } from 'react-i18next'; // For i18n support (translations)
+import React, { useEffect, useState, useMemo } from 'react';
+import styled from '@emotion/styled'; // For styling components using Emotion
+import { Empty, Pagination, Button } from 'antd'; // Ant Design components for UI elements
+import LazyLoad from 'react-lazyload'; // Lazy loading for performance optimization
+import { useSpring, animated } from 'react-spring'; // Animation library for smooth transitions
+import { useBook } from '../../hooks/useBook'; // Custom hook to interact with book context
+import Book from './Book'; // Import the Book component to display individual books
+import { useTranslation } from 'react-i18next'; // i18n for internationalization support
 
-// Styled UL element for the list of books using Emotion
+// Styled container for the list of books using CSS Grid for responsiveness
 const BookListContainer = styled.ul`
   list-style-type: none;
   padding: 0;
@@ -24,62 +35,122 @@ const BookListContainer = styled.ul`
   margin-top: 20px;
 `;
 
-// Animated List Item component for individual books using react-spring
+// Animated list item component using react-spring for smooth transitions
 const AnimatedListItem = styled(animated.li)`
   display: block;
 `;
 
 /**
  * BookList Component
- * Renders a list of books with lazy loading and animations. Handles empty states and updates book shelves.
+ * Renders a list of books with lazy loading, pagination, and animations.
+ * Handles empty states, shelf filtering, and search results.
  *
  * @param {Array} books - Array of book objects to be displayed.
- * @param {Function} onUpdateShelf - Function to handle updating the shelf when a book is moved.
- * @returns {JSX.Element} - Returns a list of books or an empty state.
+ * @param {String} shelfId - (Optional) Shelf ID to filter books by shelf.
+ * @param {String} searchQuery - (Optional) Search query for books by title or author.
+ * @param {Function} onDeleteBook - (Optional) Function to handle book deletion.
+ * @returns {JSX.Element} - Returns a list of books or an empty state if no books are available.
  */
-const BookList = React.memo(({ books, onUpdateShelf }) => {
+const BookList = ({ books, shelfId, searchQuery, onDeleteBook }) => {
+  const [currentPage, setCurrentPage] = useState(1); // State to manage pagination
+  const [booksPerPage] = useState(10); // Books to display per page
   const [hasLoaded, setHasLoaded] = useState(false); // Track if lazy-loaded books are fully loaded
   const { t } = useTranslation(); // Translation hook for i18n support
+  const { fetchBooks, getBooksByShelf, searchBooks, deleteBook } = useBook(); // Extract book-related actions from context
 
-  // Memoize the filtered book list to avoid unnecessary re-renders
+  useEffect(() => {
+    // Fetch books based on the shelfId or searchQuery
+    if (shelfId) {
+      getBooksByShelf(shelfId);
+    } else if (searchQuery) {
+      searchBooks(searchQuery);
+    } else {
+      fetchBooks();
+    }
+  }, [fetchBooks, getBooksByShelf, searchBooks, shelfId, searchQuery]);
+
+  // Memoize the filtered list of books to avoid unnecessary re-renders
   const filteredBooks = useMemo(() => books, [books]);
 
-  // Define spring animation to scale in the book once it's loaded
+  // Pagination logic to get books for the current page
+  const indexOfLastBook = currentPage * booksPerPage;
+  const indexOfFirstBook = indexOfLastBook - booksPerPage;
+  const currentBooks = filteredBooks.slice(indexOfFirstBook, indexOfLastBook);
+
+  // Define animation props for smooth book rendering
   const animationProps = useSpring({
-    opacity: hasLoaded ? 1 : 0,      // Fade in the book when it's loaded
-    transform: hasLoaded ? 'scale(1)' : 'scale(0.9)',  // Scale in effect for smooth transition
-    config: { tension: 250, friction: 30 }, // Control the speed and smoothness of the animation
+    opacity: hasLoaded ? 1 : 0,
+    transform: hasLoaded ? 'scale(1)' : 'scale(0.9)',
+    config: { tension: 250, friction: 30 },
   });
 
-  // Function to handle when a book component finishes lazy loading
+  // Handle lazy loading completion for animations
   const handleLazyLoad = () => {
-    setHasLoaded(true); // Trigger the animation after lazy loading completes
+    setHasLoaded(true);
+  };
+
+  // Handle page change in pagination
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  // Handle delete action (this uses the deleteBook function)
+  const handleDelete = async (bookId) => {
+    try {
+      await deleteBook(bookId); // Delete the book via the context function
+      if (onDeleteBook) {
+        onDeleteBook(bookId); // Call any parent-provided delete handler
+      }
+    } catch (error) {
+      console.error('Error deleting book:', error);
+    }
   };
 
   return (
     <>
-      {filteredBooks.length > 0 ? (
+      {currentBooks.length > 0 ? (
         <BookListContainer>
-          {filteredBooks.map((book) => (
+          {currentBooks.map((book) => (
             <LazyLoad
-              key={book.id} // Ensure each book has a unique key
+              key={book.id} // Ensure unique key for each book item
               height={200} // Placeholder height for lazy loading
-              offset={100} // Pre-load 100px before entering viewport
-              once // Load only once when the book enters the viewport
-              placeholder={<div>{t('bookList.loading')}</div>} // Show loading text (localized)
-              onContentVisible={handleLazyLoad} // Trigger animation on lazy load
+              offset={100} // Preload when 100px before viewport
+              once // Load each book only once
+              placeholder={<div>{t('bookList.loading')}</div>} // Display loading message during lazy loading
+              onContentVisible={handleLazyLoad} // Trigger animation when content is visible
             >
               <AnimatedListItem style={animationProps}>
-                <Book book={book} onUpdateShelf={onUpdateShelf} /> {/* Pass book data and onUpdateShelf function */}
+                <Book book={book} />
+                {/* If onDeleteBook is passed, display delete button */}
+                {onDeleteBook && (
+                  <Button
+                    danger
+                    onClick={() => handleDelete(book.id)} // Use handleDelete function
+                    style={{ marginTop: '10px' }} // Add spacing
+                  >
+                    {t('bookList.deleteBook')}
+                  </Button>
+                )}
               </AnimatedListItem>
             </LazyLoad>
           ))}
         </BookListContainer>
       ) : (
+        // If no books are available, show an empty state with a localized message
         <Empty description={t('bookList.empty')} />
+      )}
+      {/* Pagination component to navigate between pages */}
+      {filteredBooks.length > booksPerPage && (
+        <Pagination
+          current={currentPage}
+          pageSize={booksPerPage}
+          total={filteredBooks.length}
+          onChange={handlePageChange}
+          style={{ marginTop: '20px', textAlign: 'center' }} // Add spacing and center alignment
+        />
       )}
     </>
   );
-});
+};
 
-export default BookList;
+export default React.memo(BookList); // Memoize the component to prevent unnecessary re-renders

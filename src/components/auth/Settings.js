@@ -2,13 +2,13 @@
  * Settings.js
  * 
  * This component allows users to update their account settings, such as email preferences and notification preferences.
- * It integrates with the `useUser` custom hook to manage user-specific settings and uses `react-hook-form` for form handling and validation.
+ * It integrates with the `useAuth` custom hook to manage user-specific settings and uses `react-hook-form` for form handling and validation.
  * It also supports internationalization (i18n) using `react-i18next` and Ant Design for UI components.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form'; // React Hook Form for managing form state and validation
-import { useUser } from '../../hooks/useUser'; // Custom hook to manage user-related actions and state
+import { useAuth } from '../../hooks/useAuth'; // Custom hook for managing user-related actions and state
 import { useTranslation } from 'react-i18next'; // Hook for i18n localization
 import { Input, Button, Switch, Form, Spin } from 'antd'; // Ant Design components for form UI
 import { css } from '@emotion/react'; // Emotion for CSS-in-JS styling
@@ -16,10 +16,10 @@ import ErrorMessage from '../ui/ErrorMessage'; // Error message component for di
 
 const Settings = () => {
   // Initialize `useForm` to manage form state and validation
-  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm();
 
-  // Access user-specific settings and update logic from `useUser` hook
-  const { updateUserSettings, isLoading, error, settings } = useUser();
+  // Access user-specific settings and update logic from `useAuth` hook
+  const { fetchUserSettings, updateUserSettings, isLoading, error, settings } = useAuth();
 
   // Access translation function from `react-i18next` for i18n support
   const { t } = useTranslation();
@@ -46,6 +46,23 @@ const Settings = () => {
       justify-content: flex-end;
     }
   `;
+
+  /**
+   * Fetch and pre-fill user settings on component mount.
+   */
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        await fetchUserSettings(); // Fetch current user settings
+        // Set form fields to fetched settings after data is loaded
+        setValue('emailPreferences', settings?.emailPreferences);
+        setValue('notificationsEnabled', settings?.notificationsEnabled);
+      } catch (err) {
+        console.error('Error fetching settings:', err);
+      }
+    };
+    loadSettings();
+  }, [fetchUserSettings, setValue, settings]);
 
   /**
    * onSubmit function
@@ -97,7 +114,7 @@ const Settings = () => {
         >
           <Switch
             id="notificationsEnabled"
-            checked={settings?.notificationsEnabled} // Pre-fill the switch with existing setting
+            defaultChecked={settings?.notificationsEnabled} // Pre-fill the switch with existing setting
             {...register('notificationsEnabled')} // Register switch for form submission
           />
           <span style={{ marginLeft: 8 }}>
@@ -106,8 +123,6 @@ const Settings = () => {
               : t('settings.notificationsOff')} {/* Show "Off" if notifications are disabled */}
           </span>
         </Form.Item>
-
-        {/* Add other settings fields if needed (e.g., password change, privacy settings) */}
 
         {/* Save Changes Button */}
         <div className="form-buttons">

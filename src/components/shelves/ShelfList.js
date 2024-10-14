@@ -10,14 +10,15 @@
 import React, { useMemo } from 'react'; // Import React and memoization hook
 import { Link } from 'react-router-dom'; // For navigation to shelf details using React Router
 import { useShelf } from '../../hooks/useShelf'; // Custom hook to access shelf-related data and actions
-import { List, Spin, Typography, Alert } from 'antd'; // Ant Design components for list, spinner, typography, and alert
-import { FolderOutlined } from '@ant-design/icons'; // Ant Design icon for representing shelves
+import { List, Spin, Typography, Alert, Button, Popconfirm } from 'antd'; // Ant Design components for list, spinner, typography, alert, button, and popconfirm
+import { FolderOutlined, DeleteOutlined } from '@ant-design/icons'; // Ant Design icons for representing shelves and delete action
 import styled from '@emotion/styled'; // Emotion for CSS-in-JS styling
 import { useTranslation } from 'react-i18next'; // Hook for translations
 import {
   globalContainerStyles,
   errorMessageStyles,
   listItemStyles,
+  buttonStyles,
 } from '../../assets/styles/globalStyles'; // Import global styles for consistency
 
 // Destructure Title from Ant Design's Typography component
@@ -34,6 +35,9 @@ const ShelfListContainer = styled.div`
 // Styled list item for each shelf using Emotion and global styles
 const StyledListItem = styled(List.Item)`
   ${listItemStyles}; /* Apply global styles for list items */
+  display: flex;
+  justify-content: space-between; /* Ensure content is spaced out */
+  align-items: center;
 `;
 
 /**
@@ -42,12 +46,13 @@ const StyledListItem = styled(List.Item)`
  * This component fetches and displays a list of shelves from the `useShelf` hook. 
  * If there are shelves, it maps over the list and displays each shelf as a clickable link. 
  * It also handles loading and error states using Ant Design's Spin and Alert components.
+ * Users can also delete shelves directly from the list.
  * 
  * @returns {JSX.Element} - A list of shelves or a loading/error message.
  */
 const ShelfList = () => {
   const { t } = useTranslation(); // Translation hook for internationalization (i18n)
-  const { shelves, isLoading, error } = useShelf(); // Get shelves, loading, and error states from the custom hook
+  const { shelves, isLoading, error, deleteShelf } = useShelf(); // Get shelves, loading, and error states from the custom hook
 
   // Memoize the shelves data to prevent unnecessary re-renders
   const memoizedShelves = useMemo(() => shelves, [shelves]);
@@ -85,6 +90,21 @@ const ShelfList = () => {
               <FolderOutlined style={{ marginRight: 8 }} /> {/* Folder icon for representing shelves */}
               {t('shelfList.shelfName', { name: shelf.name, count: shelf.books.length })} {/* Localized shelf name and book count */}
             </Link>
+            {/* Delete button for each shelf */}
+            <Popconfirm
+              title={t('shelfList.deleteConfirm')} // Localized confirmation message
+              onConfirm={() => deleteShelf(shelf._id)} // Call deleteShelf function on confirmation
+              okText={t('shelfList.confirm')} // Localized confirm text
+              cancelText={t('shelfList.cancel')} // Localized cancel text
+            >
+              <Button
+                type="link"
+                icon={<DeleteOutlined style={{ color: 'red' }} />} // Delete icon with red color for visibility
+                css={buttonStyles} // Apply global button styles
+              >
+                {t('shelfList.delete')} {/* Localized text for delete button */}
+              </Button>
+            </Popconfirm>
           </StyledListItem>
         )}
         bordered // Add a border around each list item for visual separation

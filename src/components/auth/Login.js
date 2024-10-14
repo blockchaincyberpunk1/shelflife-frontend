@@ -4,6 +4,7 @@
  * This component renders the login form, allowing users to authenticate using their email and password.
  * It utilizes the `useAuth` custom hook to handle the login process and `react-i18next` for localization.
  * Emotion's `css` is used to apply consistent styling across the form.
+ * It handles error messages and loading states.
  */
 
 import React from 'react';
@@ -23,7 +24,7 @@ import {
 
 const Login = () => {
   // Initialize React Hook Form with validation management
-  const { register, handleSubmit, formState: { errors } } = useForm();
+  const { register, handleSubmit, formState: { errors }, reset } = useForm();
 
   // Access the authentication-related actions and states from the AuthContext
   const { login, isLoading, error } = useAuth();
@@ -43,7 +44,10 @@ const Login = () => {
     try {
       // Attempt to log in the user with the provided email and password
       await login(data.email, data.password);
-      
+
+      // Reset the form fields after a successful login
+      reset();
+
       // Redirect the user to the intended page after successful login, or default to '/'
       const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });
@@ -60,13 +64,14 @@ const Login = () => {
       {error && <ErrorMessage message={error} />}
 
       {/* Render the login form, with validation and form submission handled by React Hook Form */}
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} aria-label="login-form">
         {/* Email input field */}
         <div>
           <label htmlFor="email" css={labelStyles}>{t('login.emailLabel')}</label>
           <input
             type="email"
             id="email"
+            aria-invalid={errors.email ? "true" : "false"} // Add ARIA attribute for accessibility
             {...register('email', {
               required: t('login.emailRequired'), // Localized validation message for required field
               pattern: {
@@ -77,7 +82,7 @@ const Login = () => {
             css={inputFieldStyles} // Apply global input field styles
           />
           {/* Conditionally render error message for email validation */}
-          {errors.email && <p css={errorMessageStyles}>{errors.email.message}</p>}
+          {errors.email && <p role="alert" css={errorMessageStyles}>{errors.email.message}</p>}
         </div>
 
         {/* Password input field */}
@@ -86,6 +91,7 @@ const Login = () => {
           <input
             type="password"
             id="password"
+            aria-invalid={errors.password ? "true" : "false"} // Add ARIA attribute for accessibility
             {...register('password', {
               required: t('login.passwordRequired'), // Localized validation message for required field
               minLength: {
@@ -96,11 +102,11 @@ const Login = () => {
             css={inputFieldStyles} // Apply global input field styles
           />
           {/* Conditionally render error message for password validation */}
-          {errors.password && <p css={errorMessageStyles}>{errors.password.message}</p>}
+          {errors.password && <p role="alert" css={errorMessageStyles}>{errors.password.message}</p>}
         </div>
 
         {/* Submit button with loading indicator */}
-        <button type="submit" css={buttonStyles} disabled={isLoading}>
+        <button type="submit" css={buttonStyles} disabled={isLoading} aria-busy={isLoading}>
           {isLoading ? <Spin /> : t('login.submit')} {/* Show a spinner when loading, else show submit text */}
         </button>
       </form>

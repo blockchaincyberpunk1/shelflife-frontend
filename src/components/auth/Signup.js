@@ -27,6 +27,7 @@ const Signup = () => {
     register, // To register input fields with validation
     handleSubmit, // To handle form submission
     formState: { errors }, // To get form validation errors
+    reset, // Reset function to clear form fields
   } = useForm();
 
   // Extract signup function and state (isLoading, error) from the custom useAuth hook
@@ -48,6 +49,8 @@ const Signup = () => {
     try {
       // Call the signup function (from useAuth hook) with form data
       await signup(data);
+      // Reset the form after successful signup
+      reset();
       // Redirect to the homepage ("/") after successful signup
       navigate("/", { replace: true });
     } catch (err) {
@@ -64,7 +67,7 @@ const Signup = () => {
       {error && <ErrorMessage message={error} />}
 
       {/* Form for user signup */}
-      <form onSubmit={handleSubmit(onSubmit)}>
+      <form onSubmit={handleSubmit(onSubmit)} aria-label="signup-form">
         <div>
           {/* Username input field */}
           <label htmlFor="username" css={labelStyles}>
@@ -73,6 +76,7 @@ const Signup = () => {
           <input
             type="text"
             id="username"
+            aria-invalid={errors.username ? "true" : "false"} // Add ARIA attribute for accessibility
             {...register("username", {
               required: t("signup.usernameRequired"), // Localized validation message for required field
               minLength: {
@@ -83,7 +87,7 @@ const Signup = () => {
             css={inputFieldStyles} // Apply global input field styles
           />
           {/* If there's a validation error for username, display it */}
-          {errors.username && <p css={errorMessageStyles}>{errors.username.message}</p>}
+          {errors.username && <p role="alert" css={errorMessageStyles}>{errors.username.message}</p>}
         </div>
 
         <div>
@@ -94,6 +98,7 @@ const Signup = () => {
           <input
             type="email"
             id="email"
+            aria-invalid={errors.email ? "true" : "false"} // Add ARIA attribute for accessibility
             {...register("email", {
               required: t("signup.emailRequired"), // Localized validation message for required field
               pattern: {
@@ -104,7 +109,7 @@ const Signup = () => {
             css={inputFieldStyles} // Apply global input field styles
           />
           {/* If there's a validation error for email, display it */}
-          {errors.email && <p css={errorMessageStyles}>{errors.email.message}</p>}
+          {errors.email && <p role="alert" css={errorMessageStyles}>{errors.email.message}</p>}
         </div>
 
         <div>
@@ -115,6 +120,7 @@ const Signup = () => {
           <input
             type="password"
             id="password"
+            aria-invalid={errors.password ? "true" : "false"} // Add ARIA attribute for accessibility
             {...register("password", {
               required: t("signup.passwordRequired"), // Localized validation message for required field
               minLength: {
@@ -125,11 +131,11 @@ const Signup = () => {
             css={inputFieldStyles} // Apply global input field styles
           />
           {/* If there's a validation error for password, display it */}
-          {errors.password && <p css={errorMessageStyles}>{errors.password.message}</p>}
+          {errors.password && <p role="alert" css={errorMessageStyles}>{errors.password.message}</p>}
         </div>
 
         {/* Submit button with loading state */}
-        <button type="submit" css={buttonStyles} disabled={isLoading}>
+        <button type="submit" css={buttonStyles} disabled={isLoading} aria-busy={isLoading}>
           {isLoading ? <Spin /> : t("signup.submit")} {/* Ant Design spinner during loading */}
         </button>
       </form>
